@@ -21,3 +21,9 @@
                #:clunit)
   :pathname #P"tests/"
   :components ((:file "tests")))
+
+;; This is to store the path to the source code
+;; suggested here https://xach.livejournal.com/294639.html
+(defpackage #:py4cl-config (:export #:*base-directory*))
+(defparameter py4cl-config:*base-directory* 
+  (make-pathname :name nil :type nil :defaults *load-truename*))

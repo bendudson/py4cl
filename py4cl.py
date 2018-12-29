@@ -47,12 +47,12 @@ def return_value(value):
     sys.stdout.write("r")
     send_value(value)
 
-def return_error(value):
+def return_error(err):
     """
     Send an error message
     """
     sys.stdout.write("e")
-    send_value(value)
+    send_value(str(err))
 
 # Main loop
 while True:

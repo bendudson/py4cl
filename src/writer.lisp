@@ -22,6 +22,15 @@ Default implementation returns an empty string")
       (princ (row-major-aref obj indx) stream))
     (write-char #\] stream)))
 
+(defmethod pythonize ((obj cons))
+  (with-output-to-string (stream)
+    (write-char #\( stream)
+    (write-string (pythonize (first obj)) stream)
+    (dolist (val (rest obj))
+      (write-char #\, stream)
+      (write-string (pythonize val) stream))
+    (write-char #\) stream)))
+
 (defmethod pythonize ((obj string))
   obj)
 

@@ -9,7 +9,13 @@ This sets the global variable *python* to the process handle,
 in addition to returning it.
 "
   (setf *python*
-        (uiop:launch-program "python py4cl.py" :input :stream :output :stream)))
+        (uiop:launch-program
+         (concatenate 'string
+                      "python "  ; Run python executable
+                      ;; Path *base-pathname* is defined in py4cl.asd
+                      ;; Calculate full path to python script
+                      (namestring (merge-pathnames #p"py4cl.py" py4cl-config:*base-directory*)))
+         :input :stream :output :stream)))
 
 (defun python-alive-p (&optional (process *python*))
   "Returns T if the python process is alive"
