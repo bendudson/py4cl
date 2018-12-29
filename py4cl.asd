@@ -8,6 +8,8 @@
   :depends-on ()
   :pathname #P"src/"
   :components ((:file "package")
+               (:file "reader")
+               (:file "writer")
                (:file "callpython")))
 
 (asdf:defsystem #:py4cl-tests
