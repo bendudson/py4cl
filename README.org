@@ -5,6 +5,23 @@ Lisp to call Python code. It uses streams to communicate with a
 separate python process, the approach taken by [[https://github.com/marcoheisig/cl4py][cl4py]]. This is
 different to the CFFI approach used by libraries such as [[https://github.com/pinterface/burgled-batteries][burgled-batteries]].
 
+* Examples
+
+The python subprocess can be started and stopped with `python-start` and `python-stop`.
+`python-eval` evaluates an expression, converting the result to a suitable lisp type.
+
+#+BEGIN_SRC lisp :results output
+(python-start)
+
+(princ (python-eval "[i**2 for i in range(5)]"))
+
+(python-stop)
+#+END_SRC
+
+#+RESULTS:
+: #(0 1 4 9 16)
+
+
 * Messages formats
 
 Messages consist of a single character, followed by a number (N) in string
