@@ -57,3 +57,37 @@ in addition to returning it.
   (uiop:close-streams process)
   ;; Terminate
   (uiop:terminate-process process))
+
+
+(defun python-call* (process fun-name &rest args)
+  "Call a python function, given the function name as a string
+and additional arguments. Keywords are converted to keyword arguments."
+  (let ((cmdstr (with-output-to-string (stream)
+                  (write-string fun-name stream)
+                  (if args
+                      (write-string
+                       (pythonize args) stream)
+                      (write-string "()" stream)))))
+    (python-eval* process cmdstr)))
+    
+(defun python-call (fun-name &rest args)
+  (apply #'python-call* *python* fun-name args))
+  
+(defmacro defpyfun (fun-name)
+  "Define a function which calls python
+Example
+  (py4cl:python-exec \"import math\")
+  (py4cl:defpyfun \"math.sqrt\")
+  (math.sqrt 42)
+  -> 6.4807405
+"
+  ;; Note: a string input is used, since python is case sensitive
+  (unless (typep fun-name 'string)
+    (error "Argument to defpyfun must be a string"))
+  ;; Convert string to a symbol
+  (let ((fun-sym (read-from-string fun-name)))
+    (unless (typep fun-sym 'symbol)
+      (error "Argument to defpyfun must be read as a symbol"))
+    `(defun ,fun-sym (&rest args)
+       (apply #'python-call ,fun-name args))))
+

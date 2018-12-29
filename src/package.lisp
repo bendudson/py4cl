@@ -9,4 +9,7 @@
    #:python-eval
    #:python-eval*
    #:python-exec
-   #:python-exec*))
+   #:python-exec*
+   #:python-call*
+   #:python-call
+   #:defpyfun))
