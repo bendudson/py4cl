@@ -32,16 +32,16 @@ Default implementation returns an empty string")
     (write-char #\) stream)))
 
 (defmethod pythonize ((obj string))
-  obj)
+  (write-to-string obj :escape t :readably t))
 
+(defun stream-write-string (str stream)
+  "Write a string to a stream, putting the length first"
+  ;; Convert the value to a string
+  (princ (length str) stream)  ; Header, so length of string is known to reader
+  (terpri stream)
+  (write-string str stream))
+    
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
-by the python subprocess.
-"
-  ;; Convert the value to a string
-  (let ((str (pythonize value)))
-    (princ (length str) stream)  ; Header, so length of string is known to reader
-    (terpri stream)
-    (write-string str stream)))
-
-    
+by the python subprocess as the corresponding python type"
+  (stream-write-string (pythonize value)))

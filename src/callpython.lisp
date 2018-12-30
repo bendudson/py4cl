@@ -25,7 +25,7 @@ in addition to returning it.
   (let ((stream (uiop:process-info-input process)))
     ;; Write "x" if exec, otherwise "e"
     (write-char (if exec #\x #\e) stream)
-    (stream-write-value str stream)
+    (stream-write-string str stream)
     (force-output stream))
 
   ;; Read response

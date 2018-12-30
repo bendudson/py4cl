@@ -64,6 +64,10 @@
   (assert-equalp 9
       (py4cl:python-call "sum" '(3 2 4))))
 
+(deftest call-one-arg-string (pytests)
+  (assert-equalp #("h" "e" "l" "l" "o")
+      (py4cl:python-call "list" "hello")))
+
 (py4cl:defpyfun "sum")
 (deftest defpyfun-sum (pytests)
   (assert-equalp 6
