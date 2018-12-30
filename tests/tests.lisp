@@ -47,6 +47,15 @@
     (assert-true (typep result 'cons))
     (assert-equalp '(1 2 3) result)))
 
+;; This tests whether outputs to stdout mess up the return stream
+(deftest eval-print (pytests)
+  (assert-equalp nil
+      (py4cl:python-eval "print('hello')")))
+
+(deftest exec-print (pytests)
+  (assert-equalp nil
+      (py4cl:python-exec "print('hello')")))
+
 (deftest call-one-arg-int (pytests)
   (assert-equalp 42
       (py4cl:python-call "abs" -42)))

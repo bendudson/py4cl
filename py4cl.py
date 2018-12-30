@@ -1,5 +1,11 @@
 import sys
 
+try:
+    from io import StringIO # Python 3
+except:
+    from StringIO import StringIO
+
+
 ##################################################################
 # This code adapted from cl4py
 #
@@ -65,14 +71,27 @@ while True:
         cmd_length = int(header[1:]) # Remainder is the length
         cmd_string = sys.stdin.read(cmd_length)
         
-        if cmd_type == "e":
-            return_value(eval(cmd_string, eval_globals, eval_locals))
+        if cmd_type == "e":  # Evaluate an expression
+            # Temporarily direct stdout to a StringIO buffer,
+            # to prevent commands from printing to the output stream
+            oldstdout = sys.stdout
+            sys.stdout = StringIO()
+            try:
+                result = eval(cmd_string, eval_globals, eval_locals)
+            finally:
+                sys.stdout = oldstdout # Restore
+            return_value(result)
         
-        elif cmd_type == "x":
-            exec(cmd_string, eval_globals, eval_locals)
+        elif cmd_type == "x": # Execute a statement
+            oldstdout = sys.stdout
+            sys.stdout = StringIO()
+            try:
+                exec(cmd_string, eval_globals, eval_locals)
+            finally:
+                sys.stdout = oldstdout
             return_value(None)
             
-        elif cmd_type == "q":
+        elif cmd_type == "q": # Quit
             sys.exit(0)
             
     except Exception as e:
