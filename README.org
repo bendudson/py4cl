@@ -21,6 +21,15 @@ The python subprocess can be started and stopped with `python-start` and `python
 #+RESULTS:
 : #(0 1 4 9 16)
 
+Python packages can be imported and mirrored in lisp packages.
+The python docstrings are available through `describe` as usual.
+
+To import [[https://matplotlib.org/][matplotlib]] and use it to make a simple plot:
+#+BEGIN_SRC lisp
+(py4cl::python-import "matplotlib.pyplot" :as "plt")
+(plt:plot #(1 2 3 2 1))
+(plt:show)
+#+END_SRC
 
 * Messages formats
 

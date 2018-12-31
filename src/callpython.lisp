@@ -78,7 +78,7 @@ and additional arguments. Keywords are converted to keyword arguments."
 (defun python-call (fun-name &rest args)
   (apply #'python-call* *python* fun-name args))
   
-(defmacro defpyfun (fun-name)
+(defmacro defpyfun (fun-name &key docstring in-module)
   "Define a function which calls python
 Example
   (py4cl:python-exec \"import math\")
@@ -90,9 +90,46 @@ Example
   (unless (typep fun-name 'string)
     (error "Argument to defpyfun must be a string"))
   ;; Convert string to a symbol
-  (let ((fun-sym (read-from-string fun-name)))
+  (let ((fun-sym (read-from-string fun-name))
+        (fun-fullname (if in-module
+                          (concatenate 'string in-module "." fun-name)
+                          fun-name)))
     (unless (typep fun-sym 'symbol)
       (error "Argument to defpyfun must be read as a symbol"))
     `(defun ,fun-sym (&rest args)
-       (apply #'python-call ,fun-name args))))
+       ,(or docstring "Python function")
+       (apply #'python-call ,fun-fullname args))))
 
+(defmacro python-import (module-name &key (as module-name as-supplied-p))
+  ;; Ensure that python is running
+  (unless (python-alive-p)
+    (python-start))
+
+  ;; Import the required module in python
+  (if as-supplied-p
+      (python-exec (concatenate 'string
+                                "import " module-name " as " as))
+      (python-exec (concatenate 'string
+                                "import " module-name)))
+
+  ;; Also need to import the "inspect" module
+  (python-exec "import inspect")
+
+  ;; fn-names  All functions whose names don't start with "_"
+  ;; package-sym   The symbol for the lisp package
+  (let ((fn-names (python-eval (concatenate 'string
+                                            "[name for name, fn in inspect.getmembers("
+                                            as
+                                            ", callable) if name[0] != '_']")))
+        (package-sym (read-from-string as))
+        (original-package (package-name *package*)))
+    `(progn
+       (defpackage ,package-sym (:use ))
+       (in-package ,package-sym)
+       ,@(loop for name across fn-names append
+              `((defpyfun ,name
+                    :docstring ,(python-eval (concatenate 'string
+                                                          as "." name ".__doc__"))
+                    :in-module ,as)
+                (export (read-from-string ,name))))
+       (in-package ,original-package))))
