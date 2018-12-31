@@ -3,6 +3,11 @@
 (defvar *python* nil
   "Most recently started python subprocess")
 
+(define-condition python-error (error)
+  ((text :initarg :text :reader text))
+  (:report (lambda (condition stream)
+             (format stream "Python error: ~a" (text condition)))))
+
 (defun python-start ()
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
@@ -34,8 +39,8 @@ in addition to returning it.
       ;; Returned value
       (#\r (stream-read-value stream))
       ;; Error
-      (#\e (error
-            (stream-read-string stream)))
+      (#\e (error 'python-error  
+                  :text (stream-read-string stream)))
       ;; Callback
       (#\c nil ))))
 

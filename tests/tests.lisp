@@ -32,6 +32,10 @@
     (assert-true (typep result 'integer))
     (assert-equalp 7 result)))
 
+(deftest eval-malformed (pytests)
+  (assert-condition py4cl:python-error
+      (py4cl:python-eval "1 + ")))
+
 (deftest eval-real (pytests)
   (let ((result (py4cl:python-eval "1.3 + 2.2")))
     (assert-true (typep result 'real))

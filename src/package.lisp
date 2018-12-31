@@ -3,6 +3,7 @@
 (defpackage #:py4cl
   (:use #:cl)
   (:export ; callpython
+   #:python-error
    #:python-start
    #:python-stop
    #:python-alive-p
