@@ -28,7 +28,7 @@ lispifiers = {
     list       : lambda x: "#(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     dict       : lambda x: "#.(let ((table (make-hash-table))) " + " ".join("(setf (gethash {} table) {})".format(key, value) for key, value in x.items()) + " table)",
-    str        : lambda x: "\"" + x + "\""
+    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\""
 }
 
 ##################################################################

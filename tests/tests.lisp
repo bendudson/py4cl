@@ -47,6 +47,11 @@
     (assert-true (typep result 'cons))
     (assert-equalp '(1 2 3) result)))
 
+;; Check passing strings, including quote characters which need to be escaped
+(deftest eval-string (pytests)
+  (assert-equalp "say \"hello\" world"
+      (py4cl:python-eval "'say \"hello\"' + ' world'")))
+
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
   (assert-equalp nil
