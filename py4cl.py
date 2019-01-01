@@ -6,6 +6,14 @@ except:
     from StringIO import StringIO
 
 
+# Direct stdout to a StringIO buffer,
+# to prevent commands from printing to the output stream
+
+write_stream = sys.stdout
+redirect_stream = StringIO()
+
+sys.stdout = redirect_stream
+
 ##################################################################
 # This code adapted from cl4py
 #
@@ -17,7 +25,7 @@ def lispify(obj):
     return lispify_aux(obj)
 
 def lispify_aux(obj):
-    return lispifiers[type(obj)](obj)
+    return lispifiers.get(type(obj), lambda x: "NIL")(obj)
 
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
@@ -36,59 +44,83 @@ lispifiers = {
 eval_globals = {}
 eval_locals = {}
 
+def recv_string():
+    header = sys.stdin.readline()
+    if len(header) == 0:
+        return None, ""
+    cmd_type = header[0]  # First character specifies type of command
+    cmd_length = int(header[1:]) # Remainder is the length
+    cmd_string = sys.stdin.read(cmd_length)
+    return cmd_type, cmd_string
+
+def recv_value():
+    cmd_type, cmd_string = recv_string()
+    return cmd_type, eval(cmd_string, eval_globals, eval_locals)
+
 def send_value(value):
     """
     Send a value to stdout as a string, with length of string first
     """
     value_str = lispify(value)
     print(len(value_str))
-    sys.stdout.write(value_str)
-    sys.stdout.flush()
+    write_stream.write(value_str)
+    write_stream.flush()
 
 def return_value(value):
     """
     Send a value to stdout
     """
     # Mark response as a returned value
-    sys.stdout.write("r")
-    send_value(value)
+    try:
+        sys.stdout = write_stream
+        write_stream.write("r")
+        send_value(value)
+    finally:
+        sys.stdout = redirect_stream
 
 def return_error(err):
     """
     Send an error message
     """
-    sys.stdout.write("e")
-    send_value(str(err))
+    try:
+        sys.stdout = write_stream
+        write_stream.write("e")
+        send_value(str(err))
+    finally:
+        sys.stdout = redirect_stream
+
+def callback_func(ident, args):
+    """
+    Call back to Lisp
+
+    ident  Uniquely identifies the function to call
+    args   Arguments to be passed to the function
+    """
+    try:
+        sys.stdout = write_stream
+        write_stream.write("c")
+        send_value(ident)
+    finally:
+        sys.stdout = redirect_stream
+
+    val_type, value = recv_value()
+    return value
+
+# Make callback function accessible to evaluation
+eval_globals["_py4cl_callback"] = callback_func
 
 # Main loop
 while True:
     try:
-        # Read command header
-        header = sys.stdin.readline()
-        if len(header) == 0:
-            continue
-        cmd_type = header[0]  # First character specifies type of command
-        cmd_length = int(header[1:]) # Remainder is the length
-        cmd_string = sys.stdin.read(cmd_length)
+        # Read command
+        cmd_type, cmd_string = recv_string()
         
         if cmd_type == "e":  # Evaluate an expression
-            # Temporarily direct stdout to a StringIO buffer,
-            # to prevent commands from printing to the output stream
-            oldstdout = sys.stdout
-            sys.stdout = StringIO()
-            try:
-                result = eval(cmd_string, eval_globals, eval_locals)
-            finally:
-                sys.stdout = oldstdout # Restore
+            result = eval(cmd_string, eval_globals, eval_locals)
             return_value(result)
         
         elif cmd_type == "x": # Execute a statement
-            oldstdout = sys.stdout
-            sys.stdout = StringIO()
-            try:
-                exec(cmd_string, eval_globals, eval_locals)
-            finally:
-                sys.stdout = oldstdout
+            exec(cmd_string, eval_globals, eval_locals)
             return_value(None)
             
         elif cmd_type == "q": # Quit

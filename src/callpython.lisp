@@ -33,16 +33,28 @@ in addition to returning it.
     (stream-write-string str stream)
     (force-output stream))
 
-  ;; Read response
-  (let ((stream (uiop:process-info-output process)))
-    (case (read-char stream)
-      ;; Returned value
-      (#\r (stream-read-value stream))
-      ;; Error
-      (#\e (error 'python-error  
-                  :text (stream-read-string stream)))
-      ;; Callback
-      (#\c nil ))))
+  ;; Read response, loop to handle any callbacks
+  (let ((read-stream (uiop:process-info-output process))
+        (write-stream (uiop:process-info-input process)))
+    (loop
+       (case (read-char read-stream) ; First character is type of message
+         ;; Returned value
+         (#\r (return-from python-eval*
+                (stream-read-value read-stream)))
+         ;; Error
+         (#\e (error 'python-error  
+                     :text (stream-read-string read-stream))
+              (return-from python-eval* nil))
+         ;; Callback. Value returned is a list, containing the function ID then the args
+         (#\c
+          (let ((call-value (stream-read-value read-stream)))
+            (format t "Callback ~a" call-value)
+            (force-output)
+            ;; Send a reply
+            (write-char #\r write-stream)
+            (stream-write-value call-value write-stream)
+            (force-output write-stream)))
+         (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval (str)
   (python-eval* *python* str))
@@ -54,6 +66,10 @@ in addition to returning it.
   (python-exec* *python* str))
 
 (defun python-stop (&optional (process *python*))
+  ;; If python is not running then return
+  (unless (python-alive-p process)
+    (return-from python-stop))
+
   ;; First ask python subprocess to quit
   ;; Could give it a few seconds to close nicely
   (let ((stream (uiop:process-info-input process)))

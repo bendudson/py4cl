@@ -44,4 +44,4 @@ Default implementation returns an empty string")
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
 by the python subprocess as the corresponding python type"
-  (stream-write-string (pythonize value)))
+  (stream-write-string (pythonize value) stream))
