@@ -11,32 +11,57 @@ The python subprocess can be started and stopped with `python-start` and `python
 `python-eval` evaluates an expression, converting the result to a suitable lisp type.
 
 #+BEGIN_SRC lisp :results output
-(python-start)
+(asdf:load-system "py4cl")
+(py4cl:python-start)
 
-(princ (python-eval "[i**2 for i in range(5)]"))
+(princ (py4cl:python-eval "[i**2 for i in range(5)]"))
 
-(python-stop)
+(py4cl:python-stop)
 #+END_SRC
 
 #+RESULTS:
 : #(0 1 4 9 16)
 
-Python packages can be imported and mirrored in lisp packages.
-The python docstrings are available through `describe` as usual.
+** Importing functions
+
+Python functions can be made available in Lisp by using `defpyfun`. By
+default this makes a function which can take any number of arguments.
+#+BEGIN_SRC lisp
+(asdf:load-system "py4cl")
+
+(py4cl:python-exec "import math")
+(py4cl:defpyfun "math.sqrt")
+(math.sqrt 42)
+#+END_SRC
+
+#+RESULTS:
+: 6.4807405
+
+** Importing packages
+
+Python packages can be imported and mirrored in lisp packages.  The
+python docstrings are available through `describe` as usual.  This
+starts python if it is not already running, so that the available
+functions can be discovered.
 
 To import [[https://matplotlib.org/][matplotlib]] and use it to make a simple plot:
 #+BEGIN_SRC lisp
-(py4cl::python-import "matplotlib.pyplot" :as "plt")
+(asdf:load-system "py4cl")
+(py4cl:python-import "matplotlib.pyplot" :as "plt")
+
+(describe 'plt:plot)
+
 (plt:plot #(1 2 3 2 1))
 (plt:show)
 #+END_SRC
 
-* Messages formats
+* Internal details
+** Messages formats
 
 Messages consist of a single character, followed by a number (N) in string
 format e.g. "12", a newline, then N characters. 
 
-** Lisp to Python
+*** Lisp to Python
 
 The first character of the message describes the type of message:
 - `x` means run `exec`, and is used for statements where no return
@@ -44,7 +69,7 @@ The first character of the message describes the type of message:
 - `e` means run `eval`, to evaluate an expression and return the
   result
 
-** Python to Lisp
+*** Python to Lisp
 
 The first character can be:
 - `r` indicates a return value

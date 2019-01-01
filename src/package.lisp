@@ -13,4 +13,5 @@
    #:python-exec*
    #:python-call*
    #:python-call
-   #:defpyfun))
+   #:defpyfun
+   #:python-import))

@@ -23,8 +23,24 @@ in addition to returning it.
          :input :stream :output :stream)))
 
 (defun python-alive-p (&optional (process *python*))
-  "Returns T if the python process is alive"
-  (uiop:process-alive-p process))
+  "Returns T if the python process is alive.
+Optionally pass the process object returned by PYTHON-START"
+  (and process
+       (uiop:process-alive-p process)))
+
+(defun python-stop (&optional (process *python*))
+  ;; If python is not running then return
+  (unless (python-alive-p process)
+    (return-from python-stop))
+
+  ;; First ask python subprocess to quit
+  ;; Could give it a few seconds to close nicely
+  (let ((stream (uiop:process-info-input process)))
+    (write-char #\q stream))
+  ;; Close input, output streams
+  (uiop:close-streams process)
+  ;; Terminate
+  (uiop:terminate-process process))
 
 (defun python-eval* (process str &key exec)
   (let ((stream (uiop:process-info-input process)))
@@ -64,21 +80,6 @@ in addition to returning it.
 
 (defun python-exec (str)
   (python-exec* *python* str))
-
-(defun python-stop (&optional (process *python*))
-  ;; If python is not running then return
-  (unless (python-alive-p process)
-    (return-from python-stop))
-
-  ;; First ask python subprocess to quit
-  ;; Could give it a few seconds to close nicely
-  (let ((stream (uiop:process-info-input process)))
-    (write-char #\q stream))
-  ;; Close input, output streams
-  (uiop:close-streams process)
-  ;; Terminate
-  (uiop:terminate-process process))
-
 
 (defun python-call* (process fun-name &rest args)
   "Call a python function, given the function name as a string
