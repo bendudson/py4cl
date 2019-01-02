@@ -64,12 +64,11 @@ Optionally pass the process object returned by PYTHON-START"
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
-            (format t "Callback ~a" call-value)
-            (force-output)
-            ;; Send a reply
-            (write-char #\r write-stream)
-            (stream-write-value call-value write-stream)
-            (force-output write-stream)))
+            (let ((return-value (apply (get-callback call-value) nil)))
+              ;; Send a reply
+              (write-char #\r write-stream)
+              (stream-write-value return-value write-stream)
+              (force-output write-stream))))
          (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval (str)
@@ -132,7 +131,7 @@ Example
   ;; Also need to import the "inspect" module
   (python-exec "import inspect")
 
-  ;; fn-names  All functions whose names don't start with "_"
+  ;; fn-names  All callables whose names don't start with "_"
   ;; package-sym   The symbol for the lisp package
   (let ((fn-names (python-eval (concatenate 'string
                                             "[name for name, fn in inspect.getmembers("
@@ -150,3 +149,15 @@ Example
                     :in-module ,as)
                 (export (read-from-string ,name))))
        (in-package ,original-package))))
+
+(defun export-function* (process function python-name)
+  "Makes a lisp FUNCTION available in python PROCESS as PYTHON-NAME"
+  (let ((id (register-callback function)))
+    (python-exec* process
+                  (concatenate 'string
+                               "def " python-name "(*args, **kwargs):
+    return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
+
+(defun export-function (function python-name)
+  "Makes a lisp FUNCTION available in the default python process as PYTHON-NAME"
+  (export-function* *python* function python-name))

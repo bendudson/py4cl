@@ -7,7 +7,7 @@
    "Convert an object into a string which can be written to stream.
 Default implementation returns an empty string")
   (:method (obj) 
-    ""))
+    "None"))
 
 (defmethod pythonize ((obj real))
   (write-to-string obj))

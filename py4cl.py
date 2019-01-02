@@ -89,7 +89,7 @@ def return_error(err):
     finally:
         sys.stdout = redirect_stream
 
-def callback_func(ident, args):
+def callback_func(ident, *args, **kwargs):
     """
     Call back to Lisp
 

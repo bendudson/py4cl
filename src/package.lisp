@@ -14,4 +14,6 @@
    #:python-call*
    #:python-call
    #:defpyfun
-   #:python-import))
+   #:python-import
+   #:export-function*
+   #:export-function))

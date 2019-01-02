@@ -82,3 +82,21 @@
   (assert-equalp 6
       (sum '(2 1 3))))
 
+;; Simple callback function
+(defun test-func ()
+  42)
+
+(deftest callback-no-args (pytests)
+  (py4cl:export-function #'test-func "test")
+  (assert-equalp 42
+                 (py4cl:python-eval "test()")))
+
+;; Even simpler function returning NIL
+(defun nil-func ()
+  nil)
+
+(deftest callback-no-args-return-nil (pytests)
+  (py4cl:export-function #'nil-func "test_nil")
+  (assert-equalp nil
+                 (py4cl:python-eval "test_nil()")))
+

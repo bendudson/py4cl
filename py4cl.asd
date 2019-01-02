@@ -10,6 +10,7 @@
   :components ((:file "package")
                (:file "reader")
                (:file "writer")
+               (:file "callbacks")
                (:file "callpython")))
 
 (asdf:defsystem #:py4cl-tests
