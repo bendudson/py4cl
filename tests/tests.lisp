@@ -89,7 +89,7 @@
 (deftest callback-no-args (pytests)
   (py4cl:export-function #'test-func "test")
   (assert-equalp 42
-                 (py4cl:python-eval "test()")))
+      (py4cl:python-eval "test()")))
 
 ;; Even simpler function returning NIL
 (defun nil-func ()
@@ -99,4 +99,26 @@
   (py4cl:export-function #'nil-func "test_nil")
   (assert-equalp nil
                  (py4cl:python-eval "test_nil()")))
+
+(deftest callback-one-arg (pytests)
+  (py4cl:export-function (lambda (x) (* 2 x)) "double")
+  (assert-equalp 4
+      (py4cl:python-eval "double(2)")))
+
+(deftest callback-two-args (pytests)
+  (py4cl:export-function (lambda (x y) (/ x y)) "div")
+  (assert-equalp 2.5
+      (py4cl:python-eval "div(5, 2)")))
+
+(deftest callback-many-args (pytests)
+  (py4cl:export-function #'+ "add")
+  (assert-equalp 15
+      (py4cl:python-eval "add(2, 4, 6, 3)")))
+
+(deftest callback-seq-arg (pytests)
+  (py4cl:export-function #'reverse "reverse")
+  (assert-equalp '(3 1 2 4)
+      (py4cl:python-eval "reverse((4,2,1,3))"))
+  (assert-equalp #(3 1 2 4)
+      (py4cl:python-eval "reverse([4,2,1,3])")))
 

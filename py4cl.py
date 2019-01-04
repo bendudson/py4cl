@@ -99,7 +99,7 @@ def callback_func(ident, *args, **kwargs):
     try:
         sys.stdout = write_stream
         write_stream.write("c")
-        send_value(ident)
+        send_value((ident, args))
     finally:
         sys.stdout = redirect_stream
 

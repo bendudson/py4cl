@@ -64,7 +64,7 @@ Optionally pass the process object returned by PYTHON-START"
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
-            (let ((return-value (apply (get-callback call-value) nil)))
+            (let ((return-value (apply (get-callback (first call-value)) (second call-value))))
               ;; Send a reply
               (write-char #\r write-stream)
               (stream-write-value return-value write-stream)
