@@ -14,6 +14,17 @@ redirect_stream = StringIO()
 
 sys.stdout = redirect_stream
 
+class Symbol:
+    """
+    A wrapper around a string, representing a Lisp symbol. 
+    """
+    def __init__(self, name):
+        self._name = name
+    def __str__(self):
+        return self._name
+    def __repr__(self):
+        return "Symbol("+self._name+")"
+
 ##################################################################
 # This code adapted from cl4py
 #
@@ -36,7 +47,8 @@ lispifiers = {
     list       : lambda x: "#(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     dict       : lambda x: "#.(let ((table (make-hash-table))) " + " ".join("(setf (gethash {} table) {})".format(key, value) for key, value in x.items()) + " table)",
-    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\""
+    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
+    Symbol     : lambda x: str(x)
 }
 
 ##################################################################
@@ -96,10 +108,17 @@ def callback_func(ident, *args, **kwargs):
     ident  Uniquely identifies the function to call
     args   Arguments to be passed to the function
     """
+
+    # Convert kwargs into a sequence of ":keyword value" pairs
+    # appended to the positional arguments
+    allargs = args
+    for key, value in kwargs.items():
+        allargs += (Symbol(":"+str(key)), value)
+    
     try:
         sys.stdout = write_stream
         write_stream.write("c")
-        send_value((ident, args))
+        send_value((ident, allargs))
     finally:
         sys.stdout = redirect_stream
 

@@ -122,3 +122,9 @@
   (assert-equalp #(3 1 2 4)
       (py4cl:python-eval "reverse([4,2,1,3])")))
 
+(deftest callback-keyword-arg (pytests)
+  (py4cl:export-function (lambda (&key setting) setting) "test")
+  (assert-equalp nil
+      (py4cl:python-eval "test()"))
+  (assert-equalp 42
+      (py4cl:python-eval "test(setting=42)")))
