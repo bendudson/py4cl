@@ -128,3 +128,14 @@
       (py4cl:python-eval "test()"))
   (assert-equalp 42
       (py4cl:python-eval "test(setting=42)")))
+
+
+;; Call python during callback
+(deftest python-during-callback (pytests)
+  (py4cl:export-function
+   (lambda () (py4cl:python-eval "42"))
+   "test")
+  (assert-equalp 42
+      (py4cl:python-eval "test()")))
+
+  

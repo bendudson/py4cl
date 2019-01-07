@@ -101,6 +101,36 @@ def return_error(err):
     finally:
         sys.stdout = redirect_stream
 
+def message_dispatch_loop():
+    """
+    Wait for a message, dispatch on the type of message
+    """
+    while True:
+        try:
+            # Read command
+            cmd_type, cmd_string = recv_string()
+        
+            if cmd_type == "e":  # Evaluate an expression
+                result = eval(cmd_string, eval_globals, eval_locals)
+                return_value(result)
+        
+            elif cmd_type == "x": # Execute a statement
+                exec(cmd_string, eval_globals, eval_locals)
+                return_value(None)
+            
+            elif cmd_type == "q": # Quit
+                sys.exit(0)
+                
+            elif cmd_type == "r": # Return value from Lisp function
+                return eval(cmd_string, eval_globals, eval_locals)
+
+            else:
+                return_error("Unknown message type '{0}', content: {1}".format(cmd_type, cmd_string))
+            
+        except Exception as e:
+            return_error(e)
+
+        
 def callback_func(ident, *args, **kwargs):
     """
     Call back to Lisp
@@ -122,30 +152,15 @@ def callback_func(ident, *args, **kwargs):
     finally:
         sys.stdout = redirect_stream
 
-    val_type, value = recv_value()
-    return value
+    # Wait for a value to be returned.
+    # Note that the lisp function may call python before returning
+    return message_dispatch_loop()
 
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 
 # Main loop
-while True:
-    try:
-        # Read command
-        cmd_type, cmd_string = recv_string()
-        
-        if cmd_type == "e":  # Evaluate an expression
-            result = eval(cmd_string, eval_globals, eval_locals)
-            return_value(result)
-        
-        elif cmd_type == "x": # Execute a statement
-            exec(cmd_string, eval_globals, eval_locals)
-            return_value(None)
-            
-        elif cmd_type == "q": # Quit
-            sys.exit(0)
-            
-    except Exception as e:
-        return_error(e)
+message_dispatch_loop()
+
 
 
