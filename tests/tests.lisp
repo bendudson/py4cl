@@ -82,6 +82,11 @@
   (assert-equalp 6
       (sum '(2 1 3))))
 
+(deftest call-return-numpy-types (pytests)
+  (py4cl:python-exec "import numpy as np")
+  (assert-equalp 42.0
+                 (py4cl:python-eval "np.float64(42.0)")))
+
 ;; Simple callback function
 (defun test-func ()
   42)

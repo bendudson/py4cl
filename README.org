@@ -64,6 +64,24 @@ The =PLT= package can be used to make a simple plot:
 (plt:show)
 #+END_SRC
 
+* Exporting a function to python
+
+Lisp functions can be made available to python code using =export-function=:
+#+BEGIN_SRC lisp
+(py4cl:python-start)
+(py4cl:python-exec "from scipy.integrate import romberg")
+
+(py4cl:export-function (lambda (x) (/ (exp (- (* x x)))
+                                      (sqrt pi))) "gaussian")
+
+(py4cl:python-eval "romberg(gaussian, 0.0, 1.0)") ; => 0.4213504
+#+END_SRC
+
+#+RESULTS:
+: 0.4213504
+
+
+
 * Internal details
 ** Messages formats
 

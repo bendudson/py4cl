@@ -1,4 +1,5 @@
 import sys
+import numbers
 
 try:
     from io import StringIO # Python 3
@@ -36,7 +37,16 @@ def lispify(obj):
     return lispify_aux(obj)
 
 def lispify_aux(obj):
-    return lispifiers.get(type(obj), lambda x: "NIL")(obj)
+    try:
+        return lispifiers[type(obj)](obj)
+    except KeyError:
+        # Special handling for numbers. This should catch NumPy types
+        # as well as built-in numeric types
+        if isinstance(obj, numbers.Number):
+            return str(obj)
+        
+        # Another unknown type
+        return "NIL"
 
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
