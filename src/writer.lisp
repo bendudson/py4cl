@@ -10,7 +10,11 @@ Default implementation returns an empty string")
     "None"))
 
 (defmethod pythonize ((obj real))
-  (write-to-string obj))
+  "Write a real number. 
+   Note that python doesn't handle 'd','f', 's' or 'L' exponent markers"
+  (substitute-if #\e (lambda (ch)
+                       (member ch '(#\d #\D #\f #\F #\s #\S #\l #\L)))
+                 (write-to-string obj)))
 
 (defmethod pythonize ((obj array))
   (with-output-to-string (stream)

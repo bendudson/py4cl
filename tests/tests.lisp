@@ -98,7 +98,13 @@
 (deftest callback-no-args-return-nil (pytests)
   (py4cl:export-function #'nil-func "test_nil")
   (assert-equalp nil
-                 (py4cl:python-eval "test_nil()")))
+      (py4cl:python-eval "test_nil()")))
+
+;; Python can't eval write-to-string's output "3.141592653589793d0"
+(deftest callback-return-double (pytests)
+  (py4cl:export-function (lambda () pi) "test")
+  (assert-equalp 3.1415927
+      (py4cl:python-eval "test()")))
 
 (deftest callback-one-arg (pytests)
   (py4cl:export-function (lambda (x) (* 2 x)) "double")

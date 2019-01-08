@@ -40,9 +40,13 @@ Optionally pass the process object returned by PYTHON-START"
   ;; Close input, output streams
   (uiop:close-streams process)
   ;; Terminate
-  (uiop:terminate-process process))
+  (uiop:terminate-process process)
+  ;; Mark as not alive
+  (setf *python* nil))
 
 (defun python-eval* (process str &key exec)
+  (unless (python-alive-p process)
+    (error "Python process not alive"))
   (let ((stream (uiop:process-info-input process)))
     ;; Write "x" if exec, otherwise "e"
     (write-char (if exec #\x #\e) stream)
