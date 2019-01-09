@@ -22,6 +22,35 @@ The python subprocess can be started and stopped with =python-start= and =python
 #+RESULTS:
 : #(0 1 4 9 16)
 
+** Calling python functions
+
+=python-call= can be used to pass arguments to any python callable, 
+such as a function in a module:
+
+#+BEGIN_SRC lisp
+(py4cl:python-exec "import math")
+(py4cl:python-call "math.sqrt" 42)
+#+END_SRC
+
+#+RESULTS:
+: 6.4807405
+
+or a lambda function:
+#+BEGIN_SRC lisp
+(py4cl:python-call "lambda x: 2*x" 21)
+#+END_SRC
+
+#+RESULTS:
+: 42
+
+Keywords are translated, with the symbol made lowercase:
+#+BEGIN_SRC lisp
+(py4cl:python-call "lambda a=0, b=1: a-b" :b 2 :a 1)
+#+END_SRC
+
+#+RESULTS:
+: -1
+
 ** Importing functions
 
 Python functions can be made available in Lisp by using =defpyfun=. By

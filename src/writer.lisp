@@ -27,16 +27,26 @@ Default implementation returns an empty string")
     (write-char #\] stream)))
 
 (defmethod pythonize ((obj cons))
+  "Convert a list. This leaves a trailing comma so that python
+evals a list with a single element as a tuple
+"
   (with-output-to-string (stream)
     (write-char #\( stream)
-    (write-string (pythonize (first obj)) stream)
-    (dolist (val (rest obj))
-      (write-char #\, stream)
-      (write-string (pythonize val) stream))
+    (dolist (val obj)
+      (write-string (pythonize val) stream)
+      (write-char #\, stream))
     (write-char #\) stream)))
 
 (defmethod pythonize ((obj string))
   (write-to-string obj :escape t :readably t))
+
+(defmethod pythonize ((obj symbol))
+  "Handle symbols. Need to handle NIL,
+converting it to Python None"
+  (if obj
+      (concatenate 'string
+                   "_py4cl_Symbol(':" (string-downcase (string obj)) "')")
+      "None"))
 
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"

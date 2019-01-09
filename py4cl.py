@@ -67,17 +67,20 @@ eval_globals = {}
 eval_locals = {}
 
 def recv_string():
-    header = sys.stdin.readline()
-    if len(header) == 0:
-        return None, ""
-    cmd_type = header[0]  # First character specifies type of command
-    cmd_length = int(header[1:]) # Remainder is the length
-    cmd_string = sys.stdin.read(cmd_length)
-    return cmd_type, cmd_string
+    """
+    Get a string from the input stream
+    """
+    # First a line containing the length as a string
+    length = int(sys.stdin.readline())
+    # Then the specified number of bytes
+    return sys.stdin.read(length)
 
 def recv_value():
-    cmd_type, cmd_string = recv_string()
-    return cmd_type, eval(cmd_string, eval_globals, eval_locals)
+    """
+    Get a value from the input stream
+    Return could be any type
+    """
+    return eval(recv_string(), eval_globals, eval_locals)
 
 def send_value(value):
     """
@@ -117,23 +120,42 @@ def message_dispatch_loop():
     """
     while True:
         try:
-            # Read command
-            cmd_type, cmd_string = recv_string()
-        
+            # Read command type
+            cmd_type = sys.stdin.read(1)
+            
             if cmd_type == "e":  # Evaluate an expression
-                result = eval(cmd_string, eval_globals, eval_locals)
+                result = eval(recv_string(), eval_globals, eval_locals)
                 return_value(result)
         
             elif cmd_type == "x": # Execute a statement
-                exec(cmd_string, eval_globals, eval_locals)
+                exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
             
             elif cmd_type == "q": # Quit
                 sys.exit(0)
                 
             elif cmd_type == "r": # Return value from Lisp function
-                return eval(cmd_string, eval_globals, eval_locals)
+                return recv_value()
 
+            elif cmd_type == "f": # Function call
+                # Get a tuple (function, allargs)
+                fn_name, allargs = recv_value()
+
+                # Split positional arguments and keywords
+                args = []
+                kwargs = {}
+                it = iter(allargs) # Use iterator so we can skip values
+                for arg in it:
+                    if isinstance(arg, Symbol):
+                        # A keyword. Take the next value
+                        kwargs[ str(arg)[1:] ] = next(it)
+                        continue
+                    args.append(arg)
+                
+                # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
+                function = eval(fn_name, eval_globals, eval_locals)
+                return_value( function(*args, **kwargs) )
+                
             else:
                 return_error("Unknown message type '{0}', content: {1}".format(cmd_type, cmd_string))
             
@@ -168,6 +190,7 @@ def callback_func(ident, *args, **kwargs):
 
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
+eval_globals["_py4cl_Symbol"] = Symbol
 
 # Main loop
 message_dispatch_loop()

@@ -44,27 +44,19 @@ Optionally pass the process object returned by PYTHON-START"
   ;; Mark as not alive
   (setf *python* nil))
 
-(defun python-eval* (process str &key exec)
-  (unless (python-alive-p process)
-    (error "Python process not alive"))
-  (let ((stream (uiop:process-info-input process)))
-    ;; Write "x" if exec, otherwise "e"
-    (write-char (if exec #\x #\e) stream)
-    (stream-write-string str stream)
-    (force-output stream))
-
-  ;; Read response, loop to handle any callbacks
+(defun dispatch-messages (process)
+  "Read response from python, loop to handle any callbacks"
   (let ((read-stream (uiop:process-info-output process))
         (write-stream (uiop:process-info-input process)))
     (loop
        (case (read-char read-stream) ; First character is type of message
          ;; Returned value
-         (#\r (return-from python-eval*
+         (#\r (return-from dispatch-messages
                 (stream-read-value read-stream)))
          ;; Error
          (#\e (error 'python-error  
                      :text (stream-read-string read-stream))
-              (return-from python-eval* nil))
+              (return-from dispatch-messages nil))
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
@@ -74,6 +66,17 @@ Optionally pass the process object returned by PYTHON-START"
               (stream-write-value return-value write-stream)
               (force-output write-stream))))
          (otherwise (error "Unhandled message type"))))))
+
+(defun python-eval* (process str &key exec)
+  (unless (python-alive-p process)
+    (error "Python process not alive"))
+  (let ((stream (uiop:process-info-input process)))
+    ;; Write "x" if exec, otherwise "e"
+    (write-char (if exec #\x #\e) stream)
+    (stream-write-string str stream)
+    (force-output stream))
+  ;; Wait for response from Python
+  (dispatch-messages process))
 
 (defun python-eval (str)
   (python-eval* *python* str))
@@ -87,13 +90,14 @@ Optionally pass the process object returned by PYTHON-START"
 (defun python-call* (process fun-name &rest args)
   "Call a python function, given the function name as a string
 and additional arguments. Keywords are converted to keyword arguments."
-  (let ((cmdstr (with-output-to-string (stream)
-                  (write-string fun-name stream)
-                  (if args
-                      (write-string
-                       (pythonize args) stream)
-                      (write-string "()" stream)))))
-    (python-eval* process cmdstr)))
+  (unless (python-alive-p process)
+    (error "Python process not alive"))
+  (let ((stream (uiop:process-info-input process)))
+    ;; Write "f" to indicate function call
+    (write-char #\f stream)
+    (stream-write-value (list fun-name args) stream)
+    (force-output stream))
+  (dispatch-messages process))
     
 (defun python-call (fun-name &rest args)
   (apply #'python-call* *python* fun-name args))

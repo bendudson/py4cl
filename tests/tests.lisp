@@ -77,6 +77,25 @@
   (assert-equalp #("h" "e" "l" "l" "o")
       (py4cl:python-call "list" "hello")))
 
+(deftest call-dotted-function (pytests)
+  (py4cl:python-exec "import math")
+  (assert-equalp (sqrt 42)
+      (py4cl:python-call "math.sqrt" 42)))
+
+(deftest call-lambda-function (pytests)
+  (assert-equalp 16
+      (py4cl:python-call "lambda x: x*x" 4)))
+
+(deftest call-lambda-function-two-args (pytests)
+  (assert-equalp 10
+      (py4cl:python-call "lambda x, y: x*y - y" 3 5)))
+
+(deftest call-lambda-keywords (pytests)
+  (assert-equalp -1
+      (py4cl:python-call "lambda a=0, b=1: a-b" :b 2 :a 1))
+  (assert-equalp 1
+      (py4cl:python-call "lambda a=0, b=1: a-b" :a 2 :b 1)))
+
 (py4cl:defpyfun "sum")
 (deftest defpyfun-sum (pytests)
   (assert-equalp 6
