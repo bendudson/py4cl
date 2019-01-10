@@ -89,7 +89,7 @@ The python docstrings are made available through =describe= or
 
 The =PLT= package can be used to make a simple plot:
 #+BEGIN_SRC 
-(plt:plot #(1 2 3 2 1))
+(plt:plot #(1 2 3 2 1) :color "r")
 (plt:show)
 #+END_SRC
 

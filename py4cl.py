@@ -144,13 +144,14 @@ def message_dispatch_loop():
                 # Split positional arguments and keywords
                 args = []
                 kwargs = {}
-                it = iter(allargs) # Use iterator so we can skip values
-                for arg in it:
-                    if isinstance(arg, Symbol):
-                        # A keyword. Take the next value
-                        kwargs[ str(arg)[1:] ] = next(it)
-                        continue
-                    args.append(arg)
+                if allargs:
+                    it = iter(allargs) # Use iterator so we can skip values
+                    for arg in it:
+                        if isinstance(arg, Symbol):
+                            # A keyword. Take the next value
+                            kwargs[ str(arg)[1:] ] = next(it)
+                            continue
+                        args.append(arg)
                 
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
                 function = eval(fn_name, eval_globals, eval_locals)

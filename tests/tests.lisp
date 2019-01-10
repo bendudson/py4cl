@@ -65,6 +65,10 @@
   (assert-equalp nil
       (py4cl:python-exec "print('hello')")))
 
+(deftest call-lambda-no-args (pytests)
+  (assert-equalp 3
+      (py4cl:python-call "lambda : 3")))
+
 (deftest call-one-arg-int (pytests)
   (assert-equalp 42
       (py4cl:python-call "abs" -42)))
