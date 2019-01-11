@@ -10,17 +10,18 @@ different to the CFFI approach used by libraries such as [[https://github.com/pi
 The python subprocess can be started and stopped with =python-start= and =python-stop=.
 =python-eval= evaluates an expression, converting the result to a suitable lisp type.
 
-#+BEGIN_SRC lisp :results output
+#+BEGIN_SRC lisp
 (asdf:load-system "py4cl")
-(py4cl:python-start)
 
-(princ (py4cl:python-eval "[i**2 for i in range(5)]")) ; => #(0 1 4 9 16)
-
-(py4cl:python-stop)
+(py4cl:python-eval "[i**2 for i in range(5)]") ; => #(0 1 4 9 16)
 #+END_SRC
 
 #+RESULTS:
-: #(0 1 4 9 16)
+| 0 | 1 | 4 | 9 | 16 |
+
+The python process can be explicitly started and stopped using
+=python-start= and =python-stop=, but =py4cl= functions start python
+automatically if needed by calling =python-start-if-not-alive=.
 
 ** Calling python functions
 
@@ -53,51 +54,68 @@ Keywords are translated, with the symbol made lowercase:
 
 ** Importing functions
 
-Python functions can be made available in Lisp by using =defpyfun=. By
-default this makes a function which can take any number of arguments.
+Python functions can be made available in Lisp by using =import-function=. By
+default this makes a function which can take any number of arguments, and then
+translates these into a call to the python function.
 #+BEGIN_SRC lisp
 (asdf:load-system "py4cl")
 
-(py4cl:python-start)
 (py4cl:python-exec "import math")
-(py4cl:defpyfun "math.sqrt")
+(py4cl:import-function "math.sqrt")
 (math.sqrt 42) ; => 6.4807405
 #+END_SRC
 
 #+RESULTS:
 : 6.4807405
 
-** Importing modules as packages
+If a different symbol is needed in Lisp then the =as= keyword can be
+used with either a string or symbol:
+#+BEGIN_SRC lisp
+(py4cl:import-function "sum" :as "pysum")
+(pysum '(1 2 3))  ; => 6
+#+END_SRC
 
-Python packages can be imported and mirrored in lisp packages.  as
-usual. For example, to import [[https://matplotlib.org/][matplotlib]], and make its functions
+#+RESULTS:
+: 6
+
+This is implemented as a macro which defines a function which calls =python-call=.
+
+** Importing modules
+
+Python modules can be imported and mirrored as lisp packages using =import-module=.
+For example, to import [[https://matplotlib.org/][matplotlib]], and make its functions
 available in the package =PLT= from within Lisp, and the module =plt=
 in Python:
 #+BEGIN_SRC lisp :session import-example
 (asdf:load-system "py4cl")
-(py4cl:python-import "matplotlib.pyplot" :as "plt") ; Creates PLT package
+(py4cl:import-module "matplotlib.pyplot" :as "plt") ; Creates PLT package
 #+END_SRC
 
-=python-import= starts python if it is not already running, so that
+#+RESULTS:
+: T
+
+Like =python-exec=, =python-call= and other similar functions, 
+=import-module= starts python if it is not already running, so that
 the available functions can be discovered.
 
-The python docstrings are made available through =describe= or
-=documentation= so we can run:
-#+BEGIN_SRC  lisp :session import-examplqe
+The python docstrings are made available through =describe= so we can run:
+#+BEGIN_SRC  lisp :session import-example
 (describe 'plt:plot)
 #+END_SRC
 
 The =PLT= package can be used to make a simple plot:
-#+BEGIN_SRC 
+#+BEGIN_SRC lisp :session import-example
 (plt:plot #(1 2 3 2 1) :color "r")
 (plt:show)
 #+END_SRC
+
+#+RESULTS:
+: NIL
 
 * Exporting a function to python
 
 Lisp functions can be made available to python code using =export-function=:
 #+BEGIN_SRC lisp
-(py4cl:python-start)
 (py4cl:python-exec "from scipy.integrate import romberg")
 
 (py4cl:export-function (lambda (x) (/ (exp (- (* x x)))

@@ -28,6 +28,14 @@ Optionally pass the process object returned by PYTHON-START"
   (and process
        (uiop:process-alive-p process)))
 
+(defun python-start-if-not-alive ()
+  "If no python process is running, tries to start it.
+If still not alive, raises a condition."
+  (unless (python-alive-p)
+    (python-start))
+  (unless (python-alive-p)
+    (error "Could not start python process")))
+
 (defun python-stop (&optional (process *python*))
   ;; If python is not running then return
   (unless (python-alive-p process)
@@ -68,8 +76,7 @@ Optionally pass the process object returned by PYTHON-START"
          (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval* (process str &key exec)
-  (unless (python-alive-p process)
-    (error "Python process not alive"))
+  (python-start-if-not-alive)
   (let ((stream (uiop:process-info-input process)))
     ;; Write "x" if exec, otherwise "e"
     (write-char (if exec #\x #\e) stream)
@@ -90,8 +97,7 @@ Optionally pass the process object returned by PYTHON-START"
 (defun python-call* (process fun-name &rest args)
   "Call a python function, given the function name as a string
 and additional arguments. Keywords are converted to keyword arguments."
-  (unless (python-alive-p process)
-    (error "Python process not alive"))
+  (python-start-if-not-alive)
   (let ((stream (uiop:process-info-input process)))
     ;; Write "f" to indicate function call
     (write-char #\f stream)
@@ -102,32 +108,39 @@ and additional arguments. Keywords are converted to keyword arguments."
 (defun python-call (fun-name &rest args)
   (apply #'python-call* *python* fun-name args))
   
-(defmacro defpyfun (fun-name &key docstring in-module)
+(defmacro import-function (fun-name &key docstring
+                                      (as (read-from-string fun-name)))
   "Define a function which calls python
 Example
   (py4cl:python-exec \"import math\")
-  (py4cl:defpyfun \"math.sqrt\")
+  (py4cl:import-function \"math.sqrt\")
   (math.sqrt 42)
   -> 6.4807405
+
+Keywords:
+
+AS specifies the symbol to be used in Lisp. This can be a symbol
+or a string. If a string is given then it is read using READ-FROM-STRING.
+
+DOCSTRING is a string which becomes the function docstring
 "
   ;; Note: a string input is used, since python is case sensitive
   (unless (typep fun-name 'string)
-    (error "Argument to defpyfun must be a string"))
-  ;; Convert string to a symbol
-  (let ((fun-sym (read-from-string fun-name))
-        (fun-fullname (if in-module
-                          (concatenate 'string in-module "." fun-name)
-                          fun-name)))
-    (unless (typep fun-sym 'symbol)
-      (error "Argument to defpyfun must be read as a symbol"))
-    `(defun ,fun-sym (&rest args)
-       ,(or docstring "Python function")
-       (apply #'python-call ,fun-fullname args))))
+    (error "Argument to IMPORT-FUNCTION must be a string"))
 
-(defmacro python-import (module-name &key (as module-name as-supplied-p))
+  ;; Input AS specifies the Lisp symbol, either as a string or a symbol
+  (let ((fun-symbol (typecase as
+                      (string (read-from-string as))
+                      (symbol as)
+                      (t (error "AS keyword must be string or symbol")))))
+    
+    `(defun ,fun-symbol (&rest args)
+       ,(or docstring "Python function")
+       (apply #'python-call ,fun-name args))))
+
+(defmacro import-module (module-name &key (as module-name as-supplied-p))
   ;; Ensure that python is running
-  (unless (python-alive-p)
-    (python-start))
+  (python-start-if-not-alive)
 
   ;; Import the required module in python
   (if as-supplied-p
@@ -140,23 +153,23 @@ Example
   (python-exec "import inspect")
 
   ;; fn-names  All callables whose names don't start with "_"
-  ;; package-sym   The symbol for the lisp package
   (let ((fn-names (python-eval (concatenate 'string
                                             "[name for name, fn in inspect.getmembers("
                                             as
                                             ", callable) if name[0] != '_']")))
-        (package-sym (read-from-string as))
-        (original-package (package-name *package*)))
-    `(progn
-       (defpackage ,package-sym (:use ))
-       (in-package ,package-sym)
-       ,@(loop for name across fn-names append
-              `((defpyfun ,name
-                    :docstring ,(python-eval (concatenate 'string
-                                                          as "." name ".__doc__"))
-                    :in-module ,as)
-                (export (read-from-string ,name))))
-       (in-package ,original-package))))
+        ;; Get the package name by passing through reader, rather than using STRING-UPCASE
+        ;; so that the result reflects changes to the readtable
+        ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
+        (*package* (make-package (string (read-from-string as))
+                                 :use '() )))
+    (append '(progn)
+            (loop for name across fn-names
+               for fn-symbol = (read-from-string name)
+               for fullname = (concatenate 'string as "." name) ; Include module prefix
+               append `((import-function ,fullname :as ,fn-symbol
+                            :docstring ,(python-eval (concatenate 'string
+                                                                  as "." name ".__doc__")))
+                        (export ',fn-symbol ,*package*))))))
 
 (defun export-function* (process function python-name)
   "Makes a lisp FUNCTION available in python PROCESS as PYTHON-NAME"

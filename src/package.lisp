@@ -7,13 +7,14 @@
    #:python-start
    #:python-stop
    #:python-alive-p
+   #:python-start-if-not-alive
    #:python-eval
    #:python-eval*
    #:python-exec
    #:python-exec*
    #:python-call*
    #:python-call
-   #:defpyfun
-   #:python-import
+   #:import-function
+   #:import-module
    #:export-function*
    #:export-function))

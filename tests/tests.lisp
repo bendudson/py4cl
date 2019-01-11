@@ -100,8 +100,8 @@
   (assert-equalp 1
       (py4cl:python-call "lambda a=0, b=1: a-b" :a 2 :b 1)))
 
-(py4cl:defpyfun "sum")
-(deftest defpyfun-sum (pytests)
+(py4cl:import-function "sum")
+(deftest import-function-sum (pytests)
   (assert-equalp 6
       (sum '(2 1 3))))
 
