@@ -82,10 +82,9 @@ This is implemented as a macro which defines a function which calls =python-call
 
 ** Importing modules
 
-Python modules can be imported and mirrored as lisp packages using =import-module=.
-For example, to import [[https://matplotlib.org/][matplotlib]], and make its functions
-available in the package =PLT= from within Lisp, and the module =plt=
-in Python:
+Python modules can be imported as lisp packages using =import-module=.
+For example, to import the [[https://matplotlib.org/][matplotlib]] plotting library, and make its functions
+available in the package =PLT= from within Lisp:
 #+BEGIN_SRC lisp :session import-example
 (asdf:load-system "py4cl")
 (py4cl:import-module "matplotlib.pyplot" :as "plt") ; Creates PLT package
@@ -94,16 +93,20 @@ in Python:
 #+RESULTS:
 : T
 
+This will also import it into the python process as the module =plt=, so that
+=python-call= or =python-eval= can also make use of the =plt= module. 
+
 Like =python-exec=, =python-call= and other similar functions, 
 =import-module= starts python if it is not already running, so that
 the available functions can be discovered.
 
-The python docstrings are made available through =describe= so we can run:
+The python docstrings are made available as Lisp function docstrings, so we can see them
+using =describe=:
 #+BEGIN_SRC  lisp :session import-example
 (describe 'plt:plot)
 #+END_SRC
 
-The =PLT= package can be used to make a simple plot:
+Functions in the =PLT= package can be used to make simple plots:
 #+BEGIN_SRC lisp :session import-example
 (plt:plot #(1 2 3 2 1) :color "r")
 (plt:show)

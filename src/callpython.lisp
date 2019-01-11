@@ -139,6 +139,23 @@ DOCSTRING is a string which becomes the function docstring
        (apply #'python-call ,fun-name args))))
 
 (defmacro import-module (module-name &key (as module-name as-supplied-p))
+  "Import a python module as a Lisp package. The module name should be
+a string.
+
+Example:
+  (py4cl:import-module \"math\")
+  (math:sqrt 4)   ; => 2.0
+
+or using 
+Keywords:
+AS specifies the name to be used for both the Lisp package and python module.
+It should be a string, and if not supplied then the module name is used.
+"
+  (unless (typep module-name 'string)
+    (error "Argument to IMPORT-MODULE must be a string"))
+  (unless (typep as 'string)
+    (error "Keyword argument AS to IMPORT-MODULE must be a string"))
+  
   ;; Ensure that python is running
   (python-start-if-not-alive)
 
