@@ -172,4 +172,18 @@
   (assert-equalp 42
       (py4cl:python-eval "test()")))
 
-  
+;; Hash-table support
+(deftest hash-table-empty (pytests)
+  (assert-equalp "{}"
+      (py4cl:python-call "str" (make-hash-table))))
+
+(deftest hash-table-values (pytests)
+  (let ((table (make-hash-table)))
+    (setf (gethash "test" table) 3
+          (gethash "more" table) 42)
+    (assert-equalp 42
+        (py4cl:python-call "lambda d: d[\"more\"]" table))
+    (assert-equalp 3
+        (py4cl:python-call "lambda d: d[\"test\"]" table))
+    (assert-equalp 2
+        (py4cl:python-call "len" table))))

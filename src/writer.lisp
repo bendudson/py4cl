@@ -48,6 +48,17 @@ converting it to Python None"
                    "_py4cl_Symbol(':" (string-downcase (string obj)) "')")
       "None"))
 
+(defmethod pythonize ((obj hash-table))
+  "Convert hash-table to python map.
+Produces a string {key1:value1, key2:value2,}"
+  (concatenate 'string
+               "{"
+               (apply #'concatenate 'string
+                      (loop for key being the hash-keys of obj
+                         using (hash-value value)
+                         appending (list (pythonize key) ":" (pythonize value) ",")))
+               "}"))
+
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
   ;; Convert the value to a string
