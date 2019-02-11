@@ -100,6 +100,13 @@
   (assert-equalp 1
       (py4cl:python-call "lambda a=0, b=1: a-b" :a 2 :b 1)))
 
+(deftest call-with-lambda-callback (pytests)
+  ;; Define a function in python which calls its argument
+  (py4cl:python-exec "runme = lambda f: f()")
+  ;; Pass a lambda function to python-call
+  (assert-equalp 42
+      (py4cl:python-call "runme" (lambda () 42))))
+
 (py4cl:import-function "sum")
 (deftest import-function-sum (pytests)
   (assert-equalp 6

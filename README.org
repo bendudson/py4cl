@@ -117,6 +117,20 @@ Functions in the =PLT= package can be used to make simple plots:
 
 * Exporting a function to python
 
+Lisp functions can be passed as arguments to =python-call= 
+or imported functions:
+#+BEGIN_SRC lisp
+(py4cl:python-exec "from scipy.integrate import romberg")
+
+(py4cl:python-call "romberg" 
+                   (lambda (x) (/ (exp (- (* x x)))
+                                  (sqrt pi)))
+                   0.0 1.0) ; Range of integration
+#+END_SRC
+
+#+RESULTS:
+: 0.4213504
+
 Lisp functions can be made available to python code using =export-function=:
 #+BEGIN_SRC lisp
 (py4cl:python-exec "from scipy.integrate import romberg")
@@ -129,8 +143,6 @@ Lisp functions can be made available to python code using =export-function=:
 
 #+RESULTS:
 : 0.4213504
-
-
 
 * Internal details
 ** Messages formats

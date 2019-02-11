@@ -59,6 +59,15 @@ Produces a string {key1:value1, key2:value2,}"
                          appending (list (pythonize key) ":" (pythonize value) ",")))
                "}"))
 
+(defmethod pythonize ((obj function))
+  "Handle a function by converting to a callback object"
+
+  (let ((id (register-callback obj)))
+    (concatenate 'string
+                 "lambda *args, **kwargs: _py4cl_callback("
+                 (write-to-string id)
+                 ", *args, **kwargs)")))
+
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
   ;; Convert the value to a string
