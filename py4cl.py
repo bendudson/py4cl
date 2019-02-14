@@ -195,7 +195,7 @@ def message_dispatch_loop():
                 return_value( async_results.pop(handle) )
                 
             else:
-                return_error("Unknown message type '{0}', content: {1}".format(cmd_type, cmd_string))
+                return_error("Unknown message type '{0}'".format(cmd_type))
             
         except Exception as e:
             return_error(e)
