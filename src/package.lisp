@@ -14,6 +14,7 @@
    #:python-exec*
    #:python-call*
    #:python-call
+   #:python-call-async
    #:import-function
    #:import-module
    #:export-function*

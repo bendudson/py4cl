@@ -1,5 +1,6 @@
 import sys
 import numbers
+import itertools
 
 try:
     from io import StringIO # Python 3
@@ -91,18 +92,6 @@ def send_value(value):
     write_stream.write(value_str)
     write_stream.flush()
 
-def return_value(value):
-    """
-    Send a value to stdout
-    """
-    # Mark response as a returned value
-    try:
-        sys.stdout = write_stream
-        write_stream.write("r")
-        send_value(value)
-    finally:
-        sys.stdout = redirect_stream
-
 def return_error(err):
     """
     Send an error message
@@ -114,9 +103,34 @@ def return_error(err):
     finally:
         sys.stdout = redirect_stream
 
+def return_value(value):
+    """
+    Send a value to stdout
+    """
+    if isinstance(value, Exception):
+        return return_error(value)
+    
+    # Mark response as a returned value
+    try:
+        sys.stdout = write_stream
+        write_stream.write("r")
+        send_value(value)
+    finally:
+        sys.stdout = redirect_stream
+        
 def message_dispatch_loop():
     """
-    Wait for a message, dispatch on the type of message
+    Wait for a message, dispatch on the type of message.
+    Message types are determined by the first character:
+
+    e  Evaluate an expression (expects string)
+    x  Execute a statement (expects string)
+    q  Quit
+    r  Return value from lisp (expects value)
+    f  Function call
+    a  Asynchronous function call
+    R  Retrieve value from asynchronous call
+    s  Set variable(s) 
     """
     while True:
         try:
@@ -137,7 +151,7 @@ def message_dispatch_loop():
             elif cmd_type == "r": # Return value from Lisp function
                 return recv_value()
 
-            elif cmd_type == "f": # Function call
+            elif cmd_type == "f" or cmd_type == "a": # Function call
                 # Get a tuple (function, allargs)
                 fn_name, allargs = recv_value()
 
@@ -155,7 +169,30 @@ def message_dispatch_loop():
                 
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
                 function = eval(fn_name, eval_globals, eval_locals)
-                return_value( function(*args, **kwargs) )
+                if cmd_type == "f":
+                    # Run function then return value
+                    return_value( function(*args, **kwargs) )
+                else:
+                    # Asynchronous
+
+                    # Get a handle, and send back to caller.
+                    # The handle can be used to fetch
+                    # the result using an "R" message.
+                    
+                    handle = next(async_handle)
+                    return_value(handle)
+
+                    try:
+                        # Run function, store result
+                        async_results[handle] = function(*args, **kwargs)
+                    except Exception as e:
+                        # Catching error here so it can
+                        # be stored as the return value
+                        async_results[handle] = e
+            elif cmd_type == "R":
+                # Request value using handle
+                handle = recv_value()
+                return_value( async_results.pop(handle) )
                 
             else:
                 return_error("Unknown message type '{0}', content: {1}".format(cmd_type, cmd_string))
@@ -192,6 +229,9 @@ def callback_func(ident, *args, **kwargs):
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
+
+async_results = {}  # Store for function results. Might be Exception
+async_handle = itertools.count(0) # Running counter
 
 # Main loop
 message_dispatch_loop()

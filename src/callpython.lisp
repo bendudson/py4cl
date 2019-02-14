@@ -107,7 +107,34 @@ and additional arguments. Keywords are converted to keyword arguments."
     
 (defun python-call (fun-name &rest args)
   (apply #'python-call* *python* fun-name args))
+
+(defun python-call-async (fun-name &rest args)
+  "Call a python function asynchronously. 
+Returns a lambda which when called returns the result."
+  (python-start-if-not-alive)
+
+  (let* ((process *python*)
+         (stream (uiop:process-info-input process)))
+    
+    ;; Write "a" to indicate asynchronous function call
+    (write-char #\a stream)
+    (stream-write-value (list fun-name args) stream)
+    (force-output stream)
   
+    (let ((handle (dispatch-messages process))
+          value)
+      (lambda ()
+        (if handle
+            ;; Retrieve the value from python
+            (progn
+              (write-char #\R stream)
+              (stream-write-value handle stream)
+              (force-output stream)
+              (setf handle nil
+                    value (dispatch-messages process)))
+            ;; If no handle then already have the value
+            value)))))
+
 (defmacro import-function (fun-name &key docstring
                                       (as (read-from-string fun-name)))
   "Define a function which calls python

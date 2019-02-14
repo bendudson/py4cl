@@ -52,6 +52,29 @@ Keywords are translated, with the symbol made lowercase:
 #+RESULTS:
 : -1
 
+** Asynchronous python functions
+
+One of the advantages of using streams to communicate with a separate
+python process, is that the python and lisp processes can run at the
+same time. =python-call-async= calls python but returns a closure
+immediately. The python process continues running, and the result can
+be retrieved by calling the returned closure. 
+
+#+BEGIN_SRC lisp
+(defparameter thunk (py4cl:python-call-async "lambda x: 2*x" 21))
+
+(funcall thunk)  ; => 42
+#+END_SRC
+
+#+RESULTS:
+: 42
+
+If the function call requires callbacks to lisp, then these will only
+be serviced when a =py4cl= function is called. In that case the python
+function may not be able to finish until the thunk is called. This
+should not result in deadlocks, because all =py4cl= functions can
+service callbacks while waiting for a result.
+
 ** Importing functions
 
 Python functions can be made available in Lisp by using =import-function=. By
@@ -78,7 +101,7 @@ used with either a string or symbol:
 #+RESULTS:
 : 6
 
-This is implemented as a macro which defines a function which calls =python-call=.
+This is implemented as a macro which defines a function which in turn calls =python-call=.
 
 ** Importing modules
 

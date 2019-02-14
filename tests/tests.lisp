@@ -194,3 +194,31 @@
         (py4cl:python-call "lambda d: d[\"test\"]" table))
     (assert-equalp 2
         (py4cl:python-call "len" table))))
+
+;; Asyncronous functions
+(deftest call-function-async (pytests)
+  (let ((thunk (py4cl:python-call-async "str" 42)))
+    ;; returns a function which when called returns the result
+    (assert-equalp "42"
+        (funcall thunk))
+    ;; And returns the same when called again
+    (assert-equalp "42"
+        (funcall thunk)))
+
+  ;; Check if it handles errors
+  (let ((thunk (py4cl:python-call-async "len"))) ; TypeError
+    (assert-condition py4cl:python-error
+        (funcall thunk)))
+
+  ;; Check that values can be requested out of order
+  (let ((thunk1 (py4cl:python-call-async "str" 23))
+        (thunk2 (py4cl:python-call-async "str" 12))
+        (thunk3 (py4cl:python-call-async "str" 7)))
+    (assert-equalp "12"
+        (funcall thunk2))
+    (assert-equalp "7"
+        (funcall thunk3))
+    (assert-equalp "23"
+        (funcall thunk1))))
+
+
