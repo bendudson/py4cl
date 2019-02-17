@@ -194,6 +194,14 @@ def message_dispatch_loop():
                 handle = recv_value()
                 return_value( async_results.pop(handle) )
                 
+            elif cmd_type == "s":
+                # Set variables. Should have the form
+                # ( ("var1" value1) ("var2" value2) ...)
+                setlist = recv_value()
+                for name, value in setlist:
+                    eval_locals[name] = value
+                # Need to send something back to acknowlege
+                return_value(True)
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
             

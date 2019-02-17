@@ -18,4 +18,5 @@
    #:import-function
    #:import-module
    #:export-function*
-   #:export-function))
+   #:export-function
+   #:python-setf))

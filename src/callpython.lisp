@@ -226,3 +226,25 @@ It should be a string, and if not supplied then the module name is used.
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in the default python process as PYTHON-NAME"
   (export-function* *python* function python-name))
+
+(defun python-setf (&rest args)
+  "Set python variables in ARGS (\"var1\" value1 \"var2\" value2 ...) "
+  ;; pairs converts a list (a b c d) into a list of pairs ((a b) (c d))
+  (labels ((pairs (items)
+             (when items
+               (unless (stringp (first items))
+                 (error "Python variable names must be strings"))
+               (unless (cdr items)
+                 (error "Expected an even number of inputs"))
+               (cons (list (first items) (second items))
+                     (pairs (cddr items))))))
+    
+    (python-start-if-not-alive)
+    (let ((stream (uiop:process-info-input *python*)))
+      ;; Write "s" to indicate setting variables
+      (write-char #\s stream)
+      (stream-write-value (pairs args) stream)
+      (force-output stream))
+    ;; Should get T returned, might be error
+    (dispatch-messages *python*)))
+
