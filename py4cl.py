@@ -2,6 +2,8 @@ import sys
 import numbers
 import itertools
 
+from pyconspack import Conspack
+
 try:
     from io import StringIO # Python 3
 except:
@@ -194,6 +196,17 @@ def message_dispatch_loop():
                 handle = recv_value()
                 return_value( async_results.pop(handle) )
                 
+            elif cmd_type == "t":
+                # Testing
+                length = int(sys.stdin.readline())
+                # Then the specified number of bytes
+                #buf = sys.stdin.buffer.read(length)
+                buf = sys.stdin.read(length)
+                value = Conspack.decode(bytearray(buf, 'utf-8'))
+                result = ""
+                for c in buf.encode('utf-8'):
+                    result += str(int(c)) + ", "
+                return_value([value, result])
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
             

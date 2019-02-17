@@ -226,3 +226,18 @@ It should be a string, and if not supplied then the module name is used.
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in the default python process as PYTHON-NAME"
   (export-function* *python* function python-name))
+(defun test (value)
+  (python-start-if-not-alive)
+  (let ((stream (uiop:process-info-input *python*)))
+    (write-char #\t stream)
+    (let ((encoded (conspack:encode value)))
+      (princ (length encoded) stream)
+      (terpri stream)
+      (loop for val across encoded do
+           (progn
+             (write-byte val stream)
+             (format t "~a~%" val)))
+                                        ;(write-sequence encoded stream)
+      (force-output stream))
+    (dispatch-messages *python*)))
+

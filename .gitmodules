@@ -1,0 +1,3 @@
+[submodule "pyconspack"]
+	path = pyconspack
+	url = git@github.com:conspack/pyconspack.git
