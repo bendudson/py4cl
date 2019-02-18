@@ -2,11 +2,13 @@ import sys
 import numbers
 import itertools
 
+# For multi-dimensional arrays
+import numpy
+
 try:
     from io import StringIO # Python 3
 except:
     from StringIO import StringIO
-
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
@@ -49,17 +51,32 @@ def lispify_aux(obj):
         # Another unknown type
         return "NIL"
 
+def lispify_ndarray(obj):
+    """Convert a NumPy array to a string which can be read by lisp
+    Example:
+       array([[1, 2],     => '#2A((1 2) (3 4))'
+              [3, 4]])
+    """
+    def nested(obj):
+        """Turns an array into nested ((1 2) (3 4))"""
+        if obj.ndim == 1: 
+            return "("+" ".join([lispify(i) for i in obj])+")" 
+        return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
+
+    return "#{:d}A".format(obj.ndim) + nested(obj)
+    
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
     type(None) : lambda x: "NIL",
-    int        : lambda x: str(x),
-    float      : lambda x: str(x),
+    int        : str,
+    float      : str,
     complex    : lambda x: "#C(" + lispify_aux(x.real) + " " + lispify_aux(x.imag) + ")",
     list       : lambda x: "#(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     dict       : lambda x: "#.(let ((table (make-hash-table))) " + " ".join("(setf (gethash {} table) {})".format(key, value) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
-    Symbol     : lambda x: str(x)
+    Symbol     : str,
+    numpy.ndarray : lispify_ndarray
 }
 
 ##################################################################
@@ -237,6 +254,7 @@ def callback_func(ident, *args, **kwargs):
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
+eval_globals["_py4cl_np"] = numpy
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter

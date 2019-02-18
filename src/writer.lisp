@@ -17,14 +17,22 @@ Default implementation returns an empty string")
                  (write-to-string obj)))
 
 (defmethod pythonize ((obj array))
-  (with-output-to-string (stream)
-    (write-char #\[ stream)
-    (princ (row-major-aref obj 0) stream)
-    (do ((indx 1 (1+ indx)))
-        ((>= indx (array-total-size obj)))
-      (write-char #\, stream)
-      (princ (row-major-aref obj indx) stream))
-    (write-char #\] stream)))
+  ;; First convert the array to 1D [0,1,2,3,...]
+  (let ((array1d (with-output-to-string (stream)
+                   (write-char #\[ stream)
+                   (princ (row-major-aref obj 0) stream)
+                   (do ((indx 1 (1+ indx)))
+                       ((>= indx (array-total-size obj)))
+                     (write-char #\, stream)
+                     (princ (row-major-aref obj indx) stream))
+                   (write-char #\] stream))))
+    (if (= (array-rank obj) 1)
+        ;; 1D array return as-is
+        array1d
+        ;; Multi-dimensional array. Call NumPy to resize
+        (concatenate 'string
+                     "_py4cl_np.resize(" array1d ", "
+                     (pythonize (array-dimensions obj)) ")"))))
 
 (defmethod pythonize ((obj cons))
   "Convert a list. This leaves a trailing comma so that python

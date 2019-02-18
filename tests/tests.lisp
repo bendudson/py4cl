@@ -61,6 +61,32 @@
   (assert-equalp nil
       (py4cl:python-eval "print('hello')")))
 
+(deftest eval-params (pytests)
+  ;; Values are converted into python values
+  (let ((a 4)
+        (b 7))
+    (assert-equalp 11
+        (py4cl:python-eval a "+" b)))
+
+  ;; Arrays can also be passed
+  (assert-equalp #2A((1 2) (3 4))
+    (py4cl:python-eval #2A((1 2) (3 4))))
+
+  (assert-equalp #2A((2 4) (6 8))
+    (py4cl:python-eval #2A((1 2) (3 4)) "*" 2))
+
+  (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
+    (py4cl:python-eval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
+
+  ;; Unless the values are strings
+  (let ((str "hello"))
+    (assert-condition py4cl:python-error
+        (py4cl:python-eval "len(" str ")"))  ; "len(hello)"
+
+    ;; To pass a string to python, run through pythonize:
+    (assert-equalp 5
+        (py4cl:python-eval "len(" (py4cl::pythonize str) ")"))))
+
 (deftest exec-print (pytests)
   (assert-equalp nil
       (py4cl:python-exec "print('hello')")))
