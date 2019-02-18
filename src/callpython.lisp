@@ -75,24 +75,46 @@ If still not alive, raises a condition."
               (force-output write-stream))))
          (otherwise (error "Unhandled message type"))))))
 
-(defun python-eval* (process str &key exec)
+(defun python-eval* (cmd-char &rest args)
+  "Internal function, which converts ARGS into a string to be evaluated
+This handles both EVAL and EXEC calls with CMD-CHAR being different
+in the two cases. 
+
+Anything in ARGS which is not a string is passed through PYTHONIZE
+"
   (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input process)))
+  (let ((stream (uiop:process-info-input *python*))
+        (str (apply #'concatenate 'string (loop for val in args
+                                             collecting (if (typep val 'string)
+                                                            val
+                                                            (pythonize val))))))
     ;; Write "x" if exec, otherwise "e"
-    (write-char (if exec #\x #\e) stream)
+    (write-char cmd-char stream)
     (stream-write-string str stream)
-    (force-output stream))
-  ;; Wait for response from Python
-  (dispatch-messages process))
+    (force-output stream)
+    ;; Wait for response from Python
+    (dispatch-messages *python*)))
 
-(defun python-eval (str)
-  (python-eval* *python* str))
+(defun python-eval (&rest args)
+  "Evaluate an expression in python, returning the result
+Arguments ARGS can be strings, or other objects. Anything which 
+is not a string is converted to a python value
 
-(defun python-exec* (process str)
-  (python-eval* process str :exec t))
+Examples:
 
-(defun python-exec (str)
-  (python-exec* *python* str))
+ (python-eval \"[i**2 for i in range(\" 4 \")]\") => #(0 1 4 9)
+
+ (let ((a 10) (b 2))
+   (py4cl:python-eval a "*" b)) => 20
+"
+  (apply #'python-eval* #\e args))
+
+(defun python-exec (&rest args)
+  "Execute (using exec) an expression in python.
+This is used for statements rather than expressions.
+
+"
+  (apply #'python-eval* #\x args))
 
 (defun python-call* (process fun-name &rest args)
   "Call a python function, given the function name as a string
@@ -218,9 +240,8 @@ It should be a string, and if not supplied then the module name is used.
 (defun export-function* (process function python-name)
   "Makes a lisp FUNCTION available in python PROCESS as PYTHON-NAME"
   (let ((id (register-callback function)))
-    (python-exec* process
-                  (concatenate 'string
-                               "def " python-name "(*args, **kwargs):
+    (python-exec (concatenate 'string
+                              "def " python-name "(*args, **kwargs):
     return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
 
 (defun export-function (function python-name)
