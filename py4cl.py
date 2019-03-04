@@ -73,7 +73,8 @@ lispifiers = {
     complex    : lambda x: "#C(" + lispify_aux(x.real) + " " + lispify_aux(x.imag) + ")",
     list       : lambda x: "#(" + " ".join(lispify_aux(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify_aux(elt) for elt in x) + ")",
-    dict       : lambda x: "#.(let ((table (make-hash-table))) " + " ".join("(setf (gethash {} table) {})".format(key, value) for key, value in x.items()) + " table)",
+    # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
+    dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
     Symbol     : str,
     numpy.ndarray : lispify_ndarray

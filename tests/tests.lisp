@@ -221,6 +221,26 @@
     (assert-equalp 2
         (py4cl:python-call "len" table))))
 
+(deftest hash-table-from-dict (pytests)
+  ;; Simple keys
+  (let ((table (py4cl:python-eval "{1:2, 2:3}")))
+    (assert-equalp 2
+                   (gethash 1 table))
+    (assert-equalp 3
+                   (gethash 2 table)))
+  
+  ;; Ensure values are being lispified
+  (let ((table (py4cl:python-eval "{1:[1,2,3]}")))
+    (assert-equalp #(1 2 3)
+                   (gethash 1 table)))
+  
+  ;; Ensure keys are being lispified and string keys work
+  (let ((table (py4cl:python-eval "{\"test\":42}")))
+    (assert-equalp 42
+                   (gethash "test" table)))
+  
+  )
+
 ;; Asyncronous functions
 (deftest call-function-async (pytests)
   (let ((thunk (py4cl:python-call-async "str" 42)))
