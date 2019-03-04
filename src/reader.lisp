@@ -2,6 +2,14 @@
 
 (in-package :py4cl)
 
+(defstruct python-object
+  "A handle for a python object
+which couldn't be translated into a Lisp value.
+TYPE slot is the python type string
+HANDLE slot is a unique key used to refer to a value in python."
+  (type "" :type string)
+  handle)
+
 (defun stream-read-string (stream)
   "Reads a string from a stream
 Expects a line containing the number of chars following

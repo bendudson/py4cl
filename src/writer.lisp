@@ -76,6 +76,13 @@ Produces a string {key1:value1, key2:value2,}"
                  (write-to-string id)
                  ", *args, **kwargs)")))
 
+(defmethod pythonize ((obj python-object))
+  "A handle for a python object, stored in a dict in Python"
+  (concatenate 'string
+               "_py4cl_objects["
+               (write-to-string (python-object-handle obj))
+               "]"))
+
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
   ;; Convert the value to a string
@@ -86,4 +93,6 @@ Produces a string {key1:value1, key2:value2,}"
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
 by the python subprocess as the corresponding python type"
-  (stream-write-string (pythonize value) stream))
+  (let ((str (pythonize value)))
+    (princ str)
+    (stream-write-string str stream)))

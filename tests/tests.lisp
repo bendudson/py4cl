@@ -267,4 +267,29 @@
     (assert-equalp "23"
         (funcall thunk1))))
 
+(deftest python-objects (pytests)
+  ;; Define a simple python class containing a value
+  (py4cl:python-exec
+"class Test:
+  pass
+
+a = Test()
+a.value = 42")
+
+  ;; Check that the variable has been defined
+  (assert-equalp 42
+      (py4cl:python-eval "a.value"))
+
+  ;; Evaluate and return a python object
+  (let ((var (py4cl:python-eval "a")))
+    (assert-equalp 'PY4CL::PYTHON-OBJECT
+        (type-of var))
+
+    ;; Can pass to eval to use dot accessor
+    (assert-equalp 42
+        (py4cl:python-eval var ".value"))
+
+    ;; Can pass as argument to function
+    (assert-equal 84
+        (py4cl:python-call "lambda x : x.value * 2" var))))
 

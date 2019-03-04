@@ -48,8 +48,10 @@ def lispify_aux(obj):
         if isinstance(obj, numbers.Number):
             return str(obj)
         
-        # Another unknown type
-        return "NIL"
+        # Another unknown type. Return a handle to a python object
+        handle = next(python_handle)
+        python_objects[handle] = obj
+        return "#.(py4cl::make-python-object :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
 
 def lispify_ndarray(obj):
     """Convert a NumPy array to a string which can be read by lisp
@@ -252,10 +254,16 @@ def callback_func(ident, *args, **kwargs):
     # Note that the lisp function may call python before returning
     return message_dispatch_loop()
 
+
+# Store for python objects which can't be translated to Lisp objects
+python_objects = {}
+python_handle = itertools.count(0) # Running counter
+
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_np"] = numpy
+eval_globals["_py4cl_objects"] = python_objects
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
