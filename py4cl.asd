@@ -5,7 +5,7 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ()
+  :depends-on (#:trivial-garbage)
   :pathname #P"src/"
   :components ((:file "package")
                (:file "reader")
@@ -25,6 +25,7 @@
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
   :depends-on (#:py4cl
-               #:clunit)
+               #:clunit
+               #:trivial-garbage)
   :pathname #P"tests/"
   :components ((:file "tests")))

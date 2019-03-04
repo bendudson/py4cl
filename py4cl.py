@@ -51,7 +51,7 @@ def lispify_aux(obj):
         # Another unknown type. Return a handle to a python object
         handle = next(python_handle)
         python_objects[handle] = obj
-        return "#.(py4cl::make-python-object :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
+        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
 
 def lispify_ndarray(obj):
     """Convert a NumPy array to a string which can be read by lisp

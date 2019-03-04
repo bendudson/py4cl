@@ -237,9 +237,7 @@
   ;; Ensure keys are being lispified and string keys work
   (let ((table (py4cl:python-eval "{\"test\":42}")))
     (assert-equalp 42
-                   (gethash "test" table)))
-  
-  )
+                   (gethash "test" table))))
 
 ;; Asyncronous functions
 (deftest call-function-async (pytests)
@@ -278,18 +276,35 @@ a.value = 42")
 
   ;; Check that the variable has been defined
   (assert-equalp 42
-      (py4cl:python-eval "a.value"))
+                 (py4cl:python-eval "a.value"))
 
+  ;; Implementation detail: No objects stored in python dict
+  (assert-equalp 0
+                 (py4cl:python-eval "len(_py4cl_objects)"))
+  
   ;; Evaluate and return a python object
   (let ((var (py4cl:python-eval "a")))
+    ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL::PYTHON-OBJECT
-        (type-of var))
+                   (type-of var))
+    
+    ;; Implementation detail: Object is stored in a dictionary
+    (assert-equalp 1
+                   (py4cl:python-eval "len(_py4cl_objects)"))
 
     ;; Can pass to eval to use dot accessor
     (assert-equalp 42
-        (py4cl:python-eval var ".value"))
+                   (py4cl:python-eval var ".value"))
 
     ;; Can pass as argument to function
     (assert-equal 84
-        (py4cl:python-call "lambda x : x.value * 2" var))))
+                  (py4cl:python-call "lambda x : x.value * 2" var)))
+  
+  ;; Trigger a garbage collection so that VAR is finalized.
+  ;; This should also delete the object in python
+  (tg:gc :full t)
+
+  ;; Implementation detail: dict object store should be empty
+  (assert-equalp 0
+                 (py4cl::python-eval "len(_py4cl_objects)")))
 

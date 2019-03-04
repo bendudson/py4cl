@@ -10,6 +10,19 @@ HANDLE slot is a unique key used to refer to a value in python."
   (type "" :type string)
   handle)
 
+(defun make-python-object-finalize (&key (type "") handle)
+    "Make a PYTHON-OBJECT struct with a finalizer.
+This deletes the object from the dict store in python.
+
+Uses trivial-garbage (public domain)
+"
+    (tg:finalize
+     (make-python-object :type type
+                         :handle handle)
+     (lambda () ; This function is called when the python-object is garbage collected
+       (ignore-errors
+         (python-exec "del _py4cl_objects[" handle "]")))))
+
 (defun stream-read-string (stream)
   "Reads a string from a stream
 Expects a line containing the number of chars following
