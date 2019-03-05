@@ -21,7 +21,8 @@ Uses trivial-garbage (public domain)
                          :handle handle)
      (lambda () ; This function is called when the python-object is garbage collected
        (ignore-errors
-         (python-exec "del _py4cl_objects[" handle "]")))))
+         (if (python-alive-p) ; If not alive, python-exec will start python
+             (python-exec "del _py4cl_objects[" handle "]"))))))
 
 (defun stream-read-string (stream)
   "Reads a string from a stream

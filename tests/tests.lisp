@@ -308,3 +308,24 @@ a.value = 42")
   (assert-equalp 0
                  (py4cl::python-eval "len(_py4cl_objects)")))
 
+(deftest python-del-objects (tests)
+    ;; Check that finalizing objects doesn't start python
+  (py4cl:python-start)
+  (py4cl:python-exec
+"class Test:
+  pass
+
+a = Test()")
+  (let ((var (py4cl:python-eval "a")))
+    ;; Implementation detail: Type of returned object
+    (assert-equalp 'PY4CL::PYTHON-OBJECT
+        (type-of var))
+    
+    (py4cl:python-stop)
+    (assert-false (py4cl:python-alive-p)))
+  
+  ;; VAR out of scope. Make sure it's finalized
+  (tg:gc :full t)
+  
+  (assert-false (py4cl:python-alive-p)))
+
