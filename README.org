@@ -7,8 +7,41 @@ different to the CFFI approach used by libraries such as [[https://github.com/pi
 
 * Examples
 
-The python subprocess can be started and stopped with =python-start= and =python-stop=.
-=python-eval= evaluates an expression, converting the result to a suitable lisp type.
+Py4CL allows python modules to be imported as Lisp packages, python
+functions to be called from lisp, and lisp functions called from
+python. In the example below, [[https://www.scipy.org/][SciPy]]'s =odeint= function is used to
+integrate ODEs defined by a Lisp function. The result is a Lisp array,
+which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting library.
+
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+
+(py4cl:import-module "numpy" :as "np")
+(py4cl:import-module "scipy.integrate" :as "integrate")
+
+;; Integrate some ODEs
+(defparameter *data*
+  (integrate:odeint 
+   (lambda (y time) 
+     (vector (aref y 1)       ; dy[0]/dt = y[1]
+             (- (aref y 0)))) ; dy[1]/dt = -y[0]
+   #(1.0 0.0)   ; Initial state
+   (np:linspace 0.0 (* 2 pi) 20)))  ; Vector of times
+
+(array-dimensions *data*) ;=> (20 2)
+
+;; Make a plot, save and show it in a window
+(py4cl:import-module "matplotlib.pyplot" :as "plt")
+
+(plt:plot *data*)
+(plt:xlabel "Time")
+(plt:savefig "result.pdf")
+(plt:show)
+#+END_SRC
+
+For more direct access to the python subprocess, =python-eval=
+evaluates an expression, converting the result to a suitable lisp
+type.
 
 #+BEGIN_SRC lisp
 (asdf:load-system "py4cl")
@@ -18,6 +51,42 @@ The python subprocess can be started and stopped with =python-start= and =python
 
 #+RESULTS:
 | 0 | 1 | 4 | 9 | 16 |
+
+#+BEGIN_SRC lisp
+(py4cl:python-eval "{'hello':'world', 'answer':42}") ; => #<HASH-TABLE :TEST EQUAL :COUNT 2>
+#+END_SRC
+
+#+RESULTS:
+: #<HASH-TABLE :TEST EQUAL :COUNT 2 {10036F03F3}>
+
+Data is passed between python and lisp as text. The python function
+=lispify= converts values to a form which can be read by the lisp
+reader; the lisp function =pythonize= outputs strings which can be
+=eval='d in python. The following type conversions are done:
+
+| Lisp type | Python type  |
+|-----------+--------------|
+| NIL       | None         |
+| integer   | int          |
+| real      | float        |
+| complex   | complex      |
+| string    | str          |
+| hash map  | dict         |
+| list      | tuple        |
+| vector    | list         |
+| array     | NumPy array  |
+| symbol    | Symbol class |
+| function  | function     |
+
+If python objects cannot be converted, then they are stored and a handle is returned
+to lisp. This handle can be used to manipulate the object, and when it is garbage collected
+the python object is also deleted.
+
+#+BEGIN_SRC lisp
+(destructuring-bind (fig ax) (plt:subplots)
+  (py4cl:python-eval ax ".plot(" #(0 1 0 1) ")")
+  (plt:show)) 
+#+END_SRC
 
 The python process can be explicitly started and stopped using
 =python-start= and =python-stop=, but =py4cl= functions start python
@@ -167,27 +236,3 @@ Lisp functions can be made available to python code using =export-function=:
 #+RESULTS:
 : 0.4213504
 
-* Internal details
-** Messages formats
-
-Messages consist of a single character, followed by a number (N) in string
-format e.g. "12", a newline, then N characters. 
-
-*** Lisp to Python
-
-The first character of the message describes the type of message:
-- `x` means run `exec`, and is used for statements where no return
-  value is expected e.g. `import` statements
-- `e` means run `eval`, to evaluate an expression and return the
-  result
-
-*** Python to Lisp
-
-The first character can be:
-- `r` indicates a return value
-- `e` indicates an error, followed by a message
-- `c` indicates a callback, calling a lisp function and expecting a
-  value to be sent back to python
-
-Strings sent to Lisp are processed with `read-from-string` to obtain a
-value. 

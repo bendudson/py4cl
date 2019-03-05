@@ -1,0 +1,25 @@
+* Internal details
+
+** Messages formats
+
+Messages consist of a single character, followed by a number (N) in string
+format e.g. "12", a newline, then N characters. 
+
+*** Lisp to Python
+
+The first character of the message describes the type of message:
+- `x` means run `exec`, and is used for statements where no return
+  value is expected e.g. `import` statements
+- `e` means run `eval`, to evaluate an expression and return the
+  result
+
+*** Python to Lisp
+
+The first character can be:
+- `r` indicates a return value
+- `e` indicates an error, followed by a message
+- `c` indicates a callback, calling a lisp function and expecting a
+  value to be sent back to python
+
+Strings sent to Lisp are processed with `read-from-string` to obtain a
+value. 
