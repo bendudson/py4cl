@@ -21,11 +21,11 @@
 
 ;; Start and stop Python, check that python-alive-p responds
 (deftest start-stop (tests)
-  (assert-equalp nil (py4cl:python-alive-p))
+  (assert-false (py4cl:python-alive-p))
   (py4cl:python-start)
-  (assert-equalp t (py4cl:python-alive-p))
+  (assert-true (py4cl:python-alive-p))
   (py4cl:python-stop)
-  (assert-equalp nil (py4cl:python-alive-p)))
+  (assert-false (py4cl:python-alive-p)))
 
 (deftest eval-integer (pytests)
   (let ((result (py4cl:python-eval "1 + 2 * 3")))
