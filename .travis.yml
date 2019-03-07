@@ -16,6 +16,7 @@ env:
 addons:
   apt:
     packages: &standard_packages
+    - python-numpy
     - python3-numpy
 
 matrix:
