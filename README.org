@@ -1,3 +1,5 @@
+[[https://travis-ci.org/bendudson/py4cl][https://travis-ci.org/bendudson/py4cl.svg?branch=master]]
+
 * Introduction
 
 Py4CL is a bridge between Common Lisp and Python, which enables Common
@@ -5,6 +7,38 @@ Lisp to interact with Python code. It uses streams to communicate with
 a separate python process, the approach taken by [[https://github.com/marcoheisig/cl4py][cl4py]]. This is
 different to the CFFI approach used by [[https://github.com/pinterface/burgled-batteries][burgled-batteries]], but has the
 same goal. 
+
+** Installing
+
+Depends on:
+
+ - Currently only works with SBCL, but hopefully others soon.
+ - ASDF3 version 3.2.0 (Jan 2017) or later, as =uiop:launch-program=
+   is used to run and communicate with python asyncronously.
+ - [[https://common-lisp.net/project/trivial-garbage/][Trivial-garbage]], available through Quicklisp.
+ - Python 2 or 3 and the [[http://www.numpy.org/][NumPy]] library.
+
+Clone this repository into =~/quicklisp/local-projects/= or other
+location where it can be found by ASDF:
+#+BEGIN_SRC bash
+$ git clone https://github.com/bendudson/py4cl.git
+#+END_SRC
+
+then load into Lisp with
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+#+END_SRC
+
+** Tests
+
+Tests use [[https://github.com/tgutu/clunit][clunit]], and run on [[https://travis-ci.org/][Travis]] using [[https://github.com/luismbo/cl-travis][cl-travis]]. Most development
+is done under Arch linux with SBCL and Python3. To run the tests
+yourself:
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+(ql:quickload :py4cl-tests)
+(py4cl-tests:run)
+#+END_SRC
 
 * Examples
 

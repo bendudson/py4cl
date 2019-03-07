@@ -104,6 +104,4 @@ Produces a string {key1:value1, key2:value2,}"
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
 by the python subprocess as the corresponding python type"
-  (let ((str (pythonize value)))
-    (princ str)
-    (stream-write-string str stream)))
+  (stream-write-string (pythonize value) stream))

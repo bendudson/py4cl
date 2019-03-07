@@ -10,21 +10,23 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    - LISP=clisp
+    #- LISP=clisp
     #- LISP=ecl
 
 addons:
   apt:
     packages: &standard_packages
+    - python-numpy
     - python3-numpy
 
 matrix:
   allow_failures:
     - env: LISP=clisp
+    - env: LISP=ccl
 
 install:
-  #- ./install.sh
-  - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash  
+  - ./install.sh
+  #- curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash  
     
 script:
   - cl -e "(ql:quickload :py4cl)

@@ -23,7 +23,8 @@ in addition to returning it.
          :input :stream :output :stream)))
 
 (defun python-alive-p (&optional (process *python*))
-  "Returns T if the python process is alive.
+  "Returns non-NIL if the python process is alive
+(e.g. SBCL -> T, CCL -> RUNNING).
 Optionally pass the process object returned by PYTHON-START"
   (and process
        (uiop:process-alive-p process)))

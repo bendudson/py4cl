@@ -21,11 +21,11 @@
 
 ;; Start and stop Python, check that python-alive-p responds
 (deftest start-stop (tests)
-  (assert-equalp nil (py4cl:python-alive-p))
+  (assert-false (py4cl:python-alive-p))
   (py4cl:python-start)
-  (assert-equalp t (py4cl:python-alive-p))
+  (assert-true (py4cl:python-alive-p))
   (py4cl:python-stop)
-  (assert-equalp nil (py4cl:python-alive-p)))
+  (assert-false (py4cl:python-alive-p)))
 
 (deftest eval-integer (pytests)
   (let ((result (py4cl:python-eval "1 + 2 * 3")))
@@ -59,7 +59,7 @@
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
   (assert-equalp nil
-      (py4cl:python-eval "print('hello')")))
+      (py4cl:python-eval "print(\"hello\")")))
 
 (deftest eval-params (pytests)
   ;; Values are converted into python values
@@ -111,7 +111,7 @@
 
 (deftest exec-print (pytests)
   (assert-equalp nil
-      (py4cl:python-exec "print('hello')")))
+      (py4cl:python-exec "print(\"hello\")")))
 
 (deftest call-lambda-no-args (pytests)
   (assert-equalp 3
@@ -196,8 +196,8 @@
 
 (deftest callback-two-args (pytests)
   (py4cl:export-function (lambda (x y) (/ x y)) "div")
-  (assert-equalp 2.5
-      (py4cl:python-eval "div(5, 2)")))
+  (assert-equalp 3
+      (py4cl:python-eval "div(6, 2)")))
 
 (deftest callback-many-args (pytests)
   (py4cl:export-function #'+ "add")
