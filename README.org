@@ -1,15 +1,16 @@
 * Introduction
 
 Py4CL is a bridge between Common Lisp and Python, which enables Common
-Lisp to call Python code. It uses streams to communicate with a
-separate python process, the approach taken by [[https://github.com/marcoheisig/cl4py][cl4py]]. This is
-different to the CFFI approach used by libraries such as [[https://github.com/pinterface/burgled-batteries][burgled-batteries]].
+Lisp to interact with Python code. It uses streams to communicate with
+a separate python process, the approach taken by [[https://github.com/marcoheisig/cl4py][cl4py]]. This is
+different to the CFFI approach used by [[https://github.com/pinterface/burgled-batteries][burgled-batteries]], but has the
+same goal. 
 
 * Examples
 
 Py4CL allows python modules to be imported as Lisp packages, python
 functions to be called from lisp, and lisp functions called from
-python. In the example below, [[https://www.scipy.org/][SciPy]]'s =odeint= function is used to
+python. In the example below, [[https://www.scipy.org/][SciPy]]'s [[https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.odeint.html][odeint]] function is used to
 integrate ODEs defined by a Lisp function. The result is a Lisp array,
 which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting library.
 
@@ -28,7 +29,7 @@ which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting
    #(1.0 0.0)   ; Initial state
    (np:linspace 0.0 (* 2 pi) 20)))  ; Vector of times
 
-(array-dimensions *data*) ;=> (20 2)
+; (array-dimensions *data*) => (20 2)
 
 ;; Make a plot, save and show it in a window
 (py4cl:import-module "matplotlib.pyplot" :as "plt")
@@ -82,10 +83,10 @@ reader; the lisp function =pythonize= outputs strings which can be
 Note that python does not have all the numerical types which lisp has,
 for example rational numbers or complex integers.
 
-If python objects cannot be converted, then they are stored and a
-handle is returned to lisp. This handle can be used to manipulate the
-object, and when it is garbage collected the python object is also
-deleted.
+If python objects cannot be converted into a lisp value, then they are
+stored and a handle is returned to lisp. This handle can be used to
+manipulate the object, and when it is garbage collected the python
+object is also deleted (using the [[https://common-lisp.net/project/trivial-garbage/][trivial-garbage]] package).
 
 #+BEGIN_SRC lisp
 (destructuring-bind (fig ax) (plt:subplots)
@@ -166,7 +167,7 @@ translates these into a call to the python function.
 #+RESULTS:
 : 6.4807405
 
-If a different symbol is needed in Lisp then the =as= keyword can be
+If a different symbol is needed in Lisp then the =:as= keyword can be
 used with either a string or symbol:
 #+BEGIN_SRC lisp
 (py4cl:import-function "sum" :as "pysum")
