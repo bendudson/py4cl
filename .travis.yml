@@ -1,0 +1,35 @@
+language: lisp
+sudo: required
+
+git:
+  depth: 3
+
+env:
+  matrix:
+    #- LISP=abcl
+    #- LISP=allegro
+    - LISP=sbcl
+    - LISP=ccl
+    - LISP=clisp
+    #- LISP=ecl
+
+addons:
+  apt:
+    packages: &standard_packages
+    - python3-numpy
+
+matrix:
+  allow_failures:
+    - env: LISP=clisp
+
+install:
+  #- ./install.sh
+  - curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash  
+    
+script:
+  - cl -e "(ql:quickload :py4cl)
+           (ql:quickload :py4cl-tests)
+           (let ((report (py4cl-tests:run)))
+             (when (plusp (slot-value report 'clunit::failed))
+               (princ report)
+               (uiop:quit 1)))"
