@@ -9,8 +9,8 @@ env:
     #- LISP=abcl
     #- LISP=allegro
     - LISP=sbcl
-    #- LISP=ccl
-    #- LISP=clisp
+    - LISP=ccl
+    - LISP=clisp
     #- LISP=ecl
 
 addons:
