@@ -87,6 +87,28 @@
     (assert-equalp 5
         (py4cl:python-eval "len(" (py4cl::pythonize str) ")"))))
 
+(deftest complex-values (pytests)
+  ;; Single values
+  (assert-equality #'= #C(1 2)
+    (py4cl:python-eval #C(1 2)))
+  (assert-equality #'= #C(1 -2)
+    (py4cl:python-eval #C(1 -2)))
+  (assert-equality #'= #C(-1 -2)
+    (py4cl:python-eval #C(-1 -2)))
+
+  ;; Expressions. Tested using multiply to catch things like
+  ;; "1+2j * 2+3j -> 1+7j rather than (-4+7j)
+  ;; Note: Python doesn't have complex integers, so all returned
+  ;;       values could be floats
+  (assert-equality #'= #C(-4 7)
+    (py4cl:python-eval #C(1 2) "*" #C(2 3)))
+  (assert-equality #'= #C(4 7)
+    (py4cl:python-eval #C(1 -2) "*" #C(-2 3)))
+  
+  ;; Lists of complex numbers
+  (assert-equality #'= #C(6 9)
+    (py4cl:python-call "sum" (list #C(1 2) #C(2 3) #C(3 4)))))
+
 (deftest exec-print (pytests)
   (assert-equalp nil
       (py4cl:python-exec "print('hello')")))

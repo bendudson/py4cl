@@ -16,6 +16,17 @@ Default implementation returns an empty string")
                        (member ch '(#\d #\D #\f #\F #\s #\S #\l #\L)))
                  (write-to-string obj)))
 
+(defmethod pythonize ((obj complex))
+  "Create string of the form \"(1+2j\". 
+If imaginary part is negative the output is of form \"(1+-2j\"
+which is interpreted correctly by python (3.7.2)."
+  (concatenate 'string
+               "("
+               (write-to-string (realpart obj))
+               "+"
+               (write-to-string (imagpart obj))
+               "j)"))
+
 (defmethod pythonize ((obj array))
   ;; First convert the array to 1D [0,1,2,3,...]
   (let ((array1d (with-output-to-string (stream)

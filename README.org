@@ -64,26 +64,32 @@ Data is passed between python and lisp as text. The python function
 reader; the lisp function =pythonize= outputs strings which can be
 =eval='d in python. The following type conversions are done:
 
-| Lisp type | Python type  |
-|-----------+--------------|
-| NIL       | None         |
-| integer   | int          |
-| real      | float        |
-| complex   | complex      |
-| string    | str          |
-| hash map  | dict         |
-| list      | tuple        |
-| vector    | list         |
-| array     | NumPy array  |
-| symbol    | Symbol class |
-| function  | function     |
+| Lisp type | Python type   |
+|-----------+---------------|
+| NIL       | None          |
+| integer   | int           |
+| ratio     | float         |
+| real      | float         |
+| complex   | complex float |
+| string    | str           |
+| hash map  | dict          |
+| list      | tuple         |
+| vector    | list          |
+| array     | NumPy array   |
+| symbol    | Symbol class  |
+| function  | function      |
 
-If python objects cannot be converted, then they are stored and a handle is returned
-to lisp. This handle can be used to manipulate the object, and when it is garbage collected
-the python object is also deleted.
+Note that python does not have all the numerical types which lisp has,
+for example rational numbers or complex integers.
+
+If python objects cannot be converted, then they are stored and a
+handle is returned to lisp. This handle can be used to manipulate the
+object, and when it is garbage collected the python object is also
+deleted.
 
 #+BEGIN_SRC lisp
 (destructuring-bind (fig ax) (plt:subplots)
+  ;; fig is #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'matplotlib.figure.Figure'>" :HANDLE 6)
   (py4cl:python-eval ax ".plot(" #(0 1 0 1) ")")
   (plt:show)) 
 #+END_SRC
