@@ -10,7 +10,7 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    - LISP=clisp
+    #- LISP=clisp
     #- LISP=ecl
 
 addons:
@@ -22,6 +22,7 @@ addons:
 matrix:
   allow_failures:
     - env: LISP=clisp
+    - end: LISP=ccl
 
 install:
   - ./install.sh
