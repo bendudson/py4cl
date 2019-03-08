@@ -10,7 +10,7 @@ import numpy
 try:
     from io import StringIO # Python 3
 except:
-    from StringIO import StringIO
+    from io import BytesIO as StringIO
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
