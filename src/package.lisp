@@ -3,6 +3,7 @@
 (defpackage #:py4cl
   (:use #:cl)
   (:export ; callpython
+   #:*python-command*   ; The executable to run
    #:python-error
    #:python-start
    #:python-stop
@@ -17,4 +18,5 @@
    #:import-module
    #:export-function*
    #:export-function
-   #:python-setf))
+   #:python-setf
+   #:python-version-info))

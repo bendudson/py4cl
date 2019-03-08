@@ -1,4 +1,3 @@
-from __future__ import print_function
 
 import sys
 import numbers
@@ -17,7 +16,7 @@ redirect_stream = StringIO()
 
 sys.stdout = redirect_stream
 
-class Symbol:
+class Symbol(object):
     """
     A wrapper around a string, representing a Lisp symbol. 
     """
@@ -236,9 +235,14 @@ def message_dispatch_loop():
                     eval_locals[name] = value
                 # Need to send something back to acknowlege
                 return_value(True)
+
+            elif cmd_type == "v":
+                # Version info
+                return_value(tuple(sys.version_info))
+
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
-            
+
         except Exception as e:
             return_error(e)
 

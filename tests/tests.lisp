@@ -58,8 +58,10 @@
 
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
-  (assert-equalp nil
-      (py4cl:python-eval "print(\"hello\")")))
+  (unless (= 2 (first (py4cl:python-version-info)))
+    (assert-equalp nil
+        (py4cl:python-eval "print(\"hello\")")
+      "This fails with python 2")))
 
 (deftest eval-params (pytests)
   ;; Values are converted into python values
@@ -110,8 +112,11 @@
     (py4cl:python-call "sum" (list #C(1 2) #C(2 3) #C(3 4)))))
 
 (deftest exec-print (pytests)
-  (assert-equalp nil
-      (py4cl:python-exec "print(\"hello\")")))
+  (unless (= 2 (first (py4cl:python-version-info)))
+      ;; Python 3
+      (assert-equalp nil
+          (py4cl:python-exec "print(\"hello\")")
+        "This fails with python 2")))
 
 (deftest call-lambda-no-args (pytests)
   (assert-equalp 3
