@@ -32,6 +32,7 @@ script:
   - cl -e "(ql:quickload :py4cl)
            (ql:quickload :py4cl-tests)
            (let ((report (py4cl-tests:run)))
-             (when (plusp (slot-value report 'clunit::failed))
+             (when (or (plusp (slot-value report 'clunit::failed))
+                       (plusp (slot-value report 'clunit::errors)))
                (princ report)
                (uiop:quit 1)))"
