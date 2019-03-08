@@ -4,9 +4,6 @@ import sys
 import numbers
 import itertools
 
-# For multi-dimensional arrays
-import numpy
-
 try:
     from io import StringIO # Python 3
 except:
@@ -31,6 +28,10 @@ class Symbol:
     def __repr__(self):
         return "Symbol("+self._name+")"
 
+# These store the environment used when eval'ing strings from Lisp
+eval_globals = {}
+eval_locals = {}
+    
 ##################################################################
 # This code adapted from cl4py
 #
@@ -54,20 +55,6 @@ def lispify_aux(obj):
         handle = next(python_handle)
         python_objects[handle] = obj
         return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
-
-def lispify_ndarray(obj):
-    """Convert a NumPy array to a string which can be read by lisp
-    Example:
-       array([[1, 2],     => '#2A((1 2) (3 4))'
-              [3, 4]])
-    """
-    def nested(obj):
-        """Turns an array into nested ((1 2) (3 4))"""
-        if obj.ndim == 1: 
-            return "("+" ".join([lispify(i) for i in obj])+")" 
-        return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
-
-    return "#{:d}A".format(obj.ndim) + nested(obj)
     
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
@@ -81,13 +68,38 @@ lispifiers = {
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
     Symbol     : str,
-    numpy.ndarray : lispify_ndarray
+    
 }
 
-##################################################################
 
-eval_globals = {}
-eval_locals = {}
+try:
+    # Use NumPy for multi-dimensional arrays
+    import numpy
+
+    def lispify_ndarray(obj):
+        """Convert a NumPy array to a string which can be read by lisp
+        Example:
+        array([[1, 2],     => '#2A((1 2) (3 4))'
+              [3, 4]])
+        """
+        def nested(obj):
+            """Turns an array into nested ((1 2) (3 4))"""
+            if obj.ndim == 1: 
+                return "("+" ".join([lispify(i) for i in obj])+")" 
+            return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
+
+        return "#{:d}A".format(obj.ndim) + nested(obj)
+
+    # Register the handler to convert Python -> Lisp strings
+    lispifiers[numpy.ndarray] = lispify_ndarray
+
+    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
+    eval_globals["_py4cl_np"] = numpy
+except:
+    pass
+
+
+##################################################################
 
 def recv_string():
     """
@@ -264,7 +276,6 @@ python_handle = itertools.count(0) # Running counter
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
-eval_globals["_py4cl_np"] = numpy
 eval_globals["_py4cl_objects"] = python_objects
 
 async_results = {}  # Store for function results. Might be Exception
