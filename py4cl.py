@@ -95,7 +95,7 @@ def lispify_aux(obj):
     except KeyError:
         # Special handling for numbers. This should catch NumPy types
         # as well as built-in numeric types
-        if isinstance(obj, (numbers.Number,)):
+        if isinstance(obj, numeric_base_classes):
             return str(obj)
         
         # Another unknown type. Return a handle to a python object
