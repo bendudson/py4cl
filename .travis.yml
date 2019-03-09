@@ -29,7 +29,8 @@ install:
   #- curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash  
     
 script:
-  - cl -e "(ql:quickload :py4cl)
+  - cl -e "(in-package :cl-user)
+           (ql:quickload :py4cl)
            (ql:quickload :py4cl/tests)
 
            (if (or
