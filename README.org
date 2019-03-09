@@ -12,11 +12,12 @@ same goal.
 
 Depends on:
 
- - Currently only works with SBCL, but hopefully others soon.
+ - Currently tested with SBCL and CCL, hopefully others soon.
  - ASDF3 version 3.2.0 (Jan 2017) or later, as =uiop:launch-program=
    is used to run and communicate with python asyncronously.
  - [[https://common-lisp.net/project/trivial-garbage/][Trivial-garbage]], available through Quicklisp.
- - Python 2 or 3 and the [[http://www.numpy.org/][NumPy]] library.
+ - Python 2 or 3
+ - (optional) The [[http://www.numpy.org/][NumPy]] python library for multidimensional arrays
 
 Clone this repository into =~/quicklisp/local-projects/= or other
 location where it can be found by ASDF:
