@@ -35,9 +35,12 @@ Tests use [[https://github.com/tgutu/clunit][clunit]], and run on [[https://trav
 is done under Arch linux with SBCL and Python3. To run the tests
 yourself:
 #+BEGIN_SRC lisp
-(ql:quickload :py4cl)
-(ql:quickload :py4cl-tests)
-(py4cl-tests:run)
+(asdf:test-system :py4cl)
+#+END_SRC
+or
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl/tests)
+(py4cl/tests:run)
 #+END_SRC
 
 * Examples

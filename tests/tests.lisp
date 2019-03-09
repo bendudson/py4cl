@@ -1,9 +1,9 @@
 
-(defpackage #:py4cl-tests
+(defpackage #:py4cl/tests
   (:use #:cl #:clunit)
   (:export #:run))
 
-(in-package :py4cl-tests)
+(in-package :py4cl/tests)
 
 (defsuite tests ())
 

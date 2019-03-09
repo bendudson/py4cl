@@ -38,23 +38,6 @@ eval_locals = {}
 #
 # Copyright (c) 2018  Marco Heisig <marco.heisig@fau.de>
 
-def lispify(obj):
-    return lispify_aux(obj)
-
-def lispify_aux(obj):
-    try:
-        return lispifiers[type(obj)](obj)
-    except KeyError:
-        # Special handling for numbers. This should catch NumPy types
-        # as well as built-in numeric types
-        if isinstance(obj, numbers.Number):
-            return str(obj)
-        
-        # Another unknown type. Return a handle to a python object
-        handle = next(python_handle)
-        python_objects[handle] = obj
-        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
-    
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
     type(None) : lambda x: "NIL",
@@ -70,6 +53,8 @@ lispifiers = {
     
 }
 
+# This is used to test if a value is a numeric type
+numeric_base_classes = (numbers.Number,)
 
 try:
     # Use NumPy for multi-dimensional arrays
@@ -93,10 +78,31 @@ try:
     lispifiers[numpy.ndarray] = lispify_ndarray
 
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays
-    eval_globals["_py4cl_np"] = numpy
+    eval_globals["_py4cl_numpy"] = numpy
+
+    # Register numeric base class
+    numeric_base_classes += (numpy.number,)
 except:
     pass
 
+
+def lispify(obj):
+    return lispify_aux(obj)
+
+def lispify_aux(obj):
+    try:
+        return lispifiers[type(obj)](obj)
+    except KeyError:
+        # Special handling for numbers. This should catch NumPy types
+        # as well as built-in numeric types
+        if isinstance(obj, (numbers.Number,)):
+            return str(obj)
+        
+        # Another unknown type. Return a handle to a python object
+        handle = next(python_handle)
+        python_objects[handle] = obj
+        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
+    
 
 ##################################################################
 

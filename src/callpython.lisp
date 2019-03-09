@@ -26,7 +26,7 @@ By default this is is set to *PYTHON-COMMAND*
                       " "
                       ;; Path *base-pathname* is defined in py4cl.asd
                       ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl-config:*base-directory*)))
+                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
          :input :stream :output :stream)))
 
 (defun python-alive-p (&optional (process *python*))
