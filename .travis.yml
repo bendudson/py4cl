@@ -11,8 +11,8 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    - LISP=clisp
-    - LISP=ecl
+    #- LISP=clisp
+    #- LISP=ecl
     #- LISP=cmucl
 
 addons:
