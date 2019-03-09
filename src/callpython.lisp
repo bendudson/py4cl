@@ -124,19 +124,16 @@ This is used for statements rather than expressions.
 "
   (apply #'python-eval* #\x args))
 
-(defun python-call* (process fun-name &rest args)
+(defun python-call (fun-name &rest args)
   "Call a python function, given the function name as a string
 and additional arguments. Keywords are converted to keyword arguments."
   (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input process)))
+  (let ((stream (uiop:process-info-input *python*)))
     ;; Write "f" to indicate function call
     (write-char #\f stream)
     (stream-write-value (list fun-name args) stream)
     (force-output stream))
-  (dispatch-messages process))
-    
-(defun python-call (fun-name &rest args)
-  (apply #'python-call* *python* fun-name args))
+  (dispatch-messages *python*))
 
 (defun python-call-async (fun-name &rest args)
   "Call a python function asynchronously. 
@@ -245,16 +242,12 @@ It should be a string, and if not supplied then the module name is used.
                                                                   as "." name ".__doc__")))
                         (export ',fn-symbol ,*package*))))))
 
-(defun export-function* (process function python-name)
-  "Makes a lisp FUNCTION available in python PROCESS as PYTHON-NAME"
+(defun export-function (function python-name)
+  "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
   (let ((id (register-callback function)))
     (python-exec (concatenate 'string
                               "def " python-name "(*args, **kwargs):
     return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
-
-(defun export-function (function python-name)
-  "Makes a lisp FUNCTION available in the default python process as PYTHON-NAME"
-  (export-function* *python* function python-name))
 
 (defun python-setf (&rest args)
   "Set python variables in ARGS (\"var1\" value1 \"var2\" value2 ...) "

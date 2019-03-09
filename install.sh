@@ -209,9 +209,10 @@ ECL_TARBALL="ecl.tar.gz"
 
 install_ecl() {
     echo "Installing ECL..."
-    get "$ECL_TARBALL" "$ECL_TARBALL_URL1" "$ECL_TARBALL_URL2"
-    sudo tar -C / -xzf "$ECL_TARBALL"
-
+    #get "$ECL_TARBALL" "$ECL_TARBALL_URL1" "$ECL_TARBALL_URL2"
+    #sudo tar -C / -xzf "$ECL_TARBALL"
+    sudo apt-get install -y ecl
+    
     cim use ecl-system --default
 }
 
