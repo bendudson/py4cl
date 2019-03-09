@@ -1,4 +1,5 @@
 language: lisp
+dist: xenial
 sudo: required
 
 git:
@@ -10,9 +11,9 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    #- LISP=clisp
+    - LISP=clisp
     - LISP=ecl
-    - LISP=cmucl
+    #- LISP=cmucl
 
 addons:
   apt:
