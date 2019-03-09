@@ -10,8 +10,8 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    #- LISP=clisp
-    #- LISP=ecl
+    - LISP=clisp
+    - LISP=ecl
 
 addons:
   apt:
@@ -22,7 +22,7 @@ addons:
 matrix:
   allow_failures:
     - env: LISP=clisp
-    - env: LISP=ccl
+    #- env: LISP=ccl
 
 install:
   - ./install.sh
