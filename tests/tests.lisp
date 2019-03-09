@@ -332,8 +332,10 @@ a.value = 42")
   (tg:gc :full t)
 
   ;; Implementation detail: dict object store should be empty
-  (assert-equalp 0
-                 (py4cl::python-eval "len(_py4cl_objects)")))
+  ;; Note: This is dependent on the CL implementation. Trivial-garbage
+  ;; doesn't seem to support ccl
+  #-clozure (assert-equalp 0
+                (py4cl::python-eval "len(_py4cl_objects)")))
 
 (deftest python-del-objects (tests)
     ;; Check that finalizing objects doesn't start python
