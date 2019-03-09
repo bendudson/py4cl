@@ -10,8 +10,9 @@ env:
     #- LISP=allegro
     - LISP=sbcl
     - LISP=ccl
-    - LISP=clisp
+    #- LISP=clisp
     - LISP=ecl
+    - LISP=cmucl
 
 addons:
   apt:
