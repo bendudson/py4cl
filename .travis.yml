@@ -40,12 +40,10 @@ script:
                      (princ report)))
 
                  ;; Python 3
-                 (let ((py4cl:*python-command* "python3"))
+                 (let ((py4cl:*python-command* \"python3\"))
                    (let ((report (py4cl-tests:run)))
                      (when (or (plusp (slot-value report 'clunit::failed))
                                (plusp (slot-value report 'clunit::errors)))
                        (princ report)))))
                 ;; If either run returned a report (i.e. failed), exit with error
-                (uiop:quit 1))
-
-            "
+                (uiop:quit 1))"
