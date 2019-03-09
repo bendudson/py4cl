@@ -1,5 +1,9 @@
 (in-package :py4cl)
 
+(defvar *python-command* "python"
+  "String, the Python executable to launch
+e.g. \"python\" or \"python3\"")
+
 (defvar *python* nil
   "Most recently started python subprocess")
 
@@ -8,18 +12,21 @@
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
 
-(defun python-start ()
+(defun python-start (&optional (command *python-command*))
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
 in addition to returning it.
+COMMAND is a string with the python executable to launch e.g. \"python\"
+By default this is is set to *PYTHON-COMMAND*
 "
   (setf *python*
         (uiop:launch-program
          (concatenate 'string
-                      "python "  ; Run python executable
+                      command  ; Run python executable
+                      " "
                       ;; Path *base-pathname* is defined in py4cl.asd
                       ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl-config:*base-directory*)))
+                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
          :input :stream :output :stream)))
 
 (defun python-alive-p (&optional (process *python*))
@@ -270,3 +277,10 @@ It should be a string, and if not supplied then the module name is used.
     ;; Should get T returned, might be error
     (dispatch-messages *python*)))
 
+(defun python-version-info ()
+  "Return a list, using the result of python's sys.version_info."
+  (python-start-if-not-alive)
+  (let ((stream (uiop:process-info-input *python*)))
+    (write-char #\v stream)
+    (force-output stream))
+  (dispatch-messages *python*))

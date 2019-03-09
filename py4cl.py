@@ -1,14 +1,12 @@
+
 import sys
 import numbers
 import itertools
 
-# For multi-dimensional arrays
-import numpy
-
 try:
     from io import StringIO # Python 3
 except:
-    from StringIO import StringIO
+    from io import BytesIO as StringIO
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
@@ -18,7 +16,7 @@ redirect_stream = StringIO()
 
 sys.stdout = redirect_stream
 
-class Symbol:
+class Symbol(object):
     """
     A wrapper around a string, representing a Lisp symbol. 
     """
@@ -29,6 +27,10 @@ class Symbol:
     def __repr__(self):
         return "Symbol("+self._name+")"
 
+# These store the environment used when eval'ing strings from Lisp
+eval_globals = {}
+eval_locals = {}
+    
 ##################################################################
 # This code adapted from cl4py
 #
@@ -36,37 +38,6 @@ class Symbol:
 #
 # Copyright (c) 2018  Marco Heisig <marco.heisig@fau.de>
 
-def lispify(obj):
-    return lispify_aux(obj)
-
-def lispify_aux(obj):
-    try:
-        return lispifiers[type(obj)](obj)
-    except KeyError:
-        # Special handling for numbers. This should catch NumPy types
-        # as well as built-in numeric types
-        if isinstance(obj, numbers.Number):
-            return str(obj)
-        
-        # Another unknown type. Return a handle to a python object
-        handle = next(python_handle)
-        python_objects[handle] = obj
-        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
-
-def lispify_ndarray(obj):
-    """Convert a NumPy array to a string which can be read by lisp
-    Example:
-       array([[1, 2],     => '#2A((1 2) (3 4))'
-              [3, 4]])
-    """
-    def nested(obj):
-        """Turns an array into nested ((1 2) (3 4))"""
-        if obj.ndim == 1: 
-            return "("+" ".join([lispify(i) for i in obj])+")" 
-        return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
-
-    return "#{:d}A".format(obj.ndim) + nested(obj)
-    
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
     type(None) : lambda x: "NIL",
@@ -79,13 +50,61 @@ lispifiers = {
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
     Symbol     : str,
-    numpy.ndarray : lispify_ndarray
+    
 }
 
-##################################################################
+# This is used to test if a value is a numeric type
+numeric_base_classes = (numbers.Number,)
 
-eval_globals = {}
-eval_locals = {}
+try:
+    # Use NumPy for multi-dimensional arrays
+    import numpy
+
+    def lispify_ndarray(obj):
+        """Convert a NumPy array to a string which can be read by lisp
+        Example:
+        array([[1, 2],     => '#2A((1 2) (3 4))'
+              [3, 4]])
+        """
+        def nested(obj):
+            """Turns an array into nested ((1 2) (3 4))"""
+            if obj.ndim == 1: 
+                return "("+" ".join([lispify(i) for i in obj])+")" 
+            return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
+
+        return "#{:d}A".format(obj.ndim) + nested(obj)
+
+    # Register the handler to convert Python -> Lisp strings
+    lispifiers[numpy.ndarray] = lispify_ndarray
+
+    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
+    eval_globals["_py4cl_numpy"] = numpy
+
+    # Register numeric base class
+    numeric_base_classes += (numpy.number,)
+except:
+    pass
+
+
+def lispify(obj):
+    return lispify_aux(obj)
+
+def lispify_aux(obj):
+    try:
+        return lispifiers[type(obj)](obj)
+    except KeyError:
+        # Special handling for numbers. This should catch NumPy types
+        # as well as built-in numeric types
+        if isinstance(obj, numeric_base_classes):
+            return str(obj)
+        
+        # Another unknown type. Return a handle to a python object
+        handle = next(python_handle)
+        python_objects[handle] = obj
+        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
+    
+
+##################################################################
 
 def recv_string():
     """
@@ -222,9 +241,14 @@ def message_dispatch_loop():
                     eval_locals[name] = value
                 # Need to send something back to acknowlege
                 return_value(True)
+
+            elif cmd_type == "v":
+                # Version info
+                return_value(tuple(sys.version_info))
+
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
-            
+
         except Exception as e:
             return_error(e)
 
@@ -262,7 +286,6 @@ python_handle = itertools.count(0) # Running counter
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
-eval_globals["_py4cl_np"] = numpy
 eval_globals["_py4cl_objects"] = python_objects
 
 async_results = {}  # Store for function results. Might be Exception

@@ -42,7 +42,7 @@ which is interpreted correctly by python (3.7.2)."
         array1d
         ;; Multi-dimensional array. Call NumPy to resize
         (concatenate 'string
-                     "_py4cl_np.resize(" array1d ", "
+                     "_py4cl_numpy.resize(" array1d ", "
                      (pythonize (array-dimensions obj)) ")"))))
 
 (defmethod pythonize ((obj cons))
