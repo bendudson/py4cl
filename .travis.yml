@@ -30,15 +30,15 @@ install:
     
 script:
   - cl -e "(ql:quickload :py4cl)
-           (ql:quickload :py4cl-tests)
+           (ql:quickload :py4cl/tests)
 
            (if (or
-                 (let ((report (py4cl-tests:run)))
+                 (let ((report (py4cl/tests:run)))
                    (when (or (plusp (slot-value report 'clunit::failed))
                              (plusp (slot-value report 'clunit::errors)))
                      (princ report)))
                  (let ((py4cl:*python-command* \"python3\"))
-                   (let ((report (py4cl-tests:run)))
+                   (let ((report (py4cl/tests:run)))
                      (when (or (plusp (slot-value report 'clunit::failed))
                                (plusp (slot-value report 'clunit::errors)))
                        (princ report)))))
