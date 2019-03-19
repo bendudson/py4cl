@@ -358,3 +358,21 @@ a = Test()")
   
   (assert-false (py4cl:python-alive-p)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Passing unknown lisp objects to python
+
+(defstruct test-struct
+  x y)
+
+(deftest lisp-structs (pytests)
+  ;; Create a struct and pass to Python
+  (let ((result (py4cl:python-call
+                 "lambda x: x"
+                 (make-test-struct :x 1 :y 2))))
+
+    ;; Check we got back the structure
+    (assert-true (typep result 'test-struct))
+    (assert-equalp 1
+                   (test-struct-x result))
+    (assert-equalp 2
+                   (test-struct-y result))))

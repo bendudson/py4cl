@@ -73,6 +73,8 @@ If still not alive, raises a condition."
          (#\e (error 'python-error  
                      :text (stream-read-string read-stream))
               (return-from dispatch-messages nil))
+         ;; Delete object. This is called when an UnknownLispObject is deleted
+         (#\d (free-handle (stream-read-value read-stream)))
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))

@@ -2,12 +2,45 @@
 
 (in-package :py4cl)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Object Handles
+
+(defvar *handle-counter* 0)
+
+(defvar *lisp-objects* (make-hash-table :test #'eql))
+
+(defun free-handle (handle)
+  "Remove an object with HANDLE from the hash table"
+  (remhash handle *lisp-objects*))
+
+(defun lisp-object (handle)
+  "Get the lisp object corresponding to HANDLE"
+  (or (gethash handle *lisp-objects*)
+      (error "Invalid Handle.")))
+
+(defun object-handle (object)
+  "Store OBJECT and return a handle"
+  (let ((handle (incf *handle-counter*)))
+    (setf (gethash handle *lisp-objects*) object)
+    handle))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Convert objects to a form which python can eval
+
 (defgeneric pythonize (obj)
   (:documentation
    "Convert an object into a string which can be written to stream.
-Default implementation returns an empty string")
-  (:method (obj) 
-    "None"))
+Default implementation creates a handle to an unknown Lisp object.")
+  (:method (obj)
+    (concatenate 'string
+                 "_py4cl_UnknownLispObject(\""
+                 (write-to-string
+                 (type-of obj))
+                 "\", "
+                 (write-to-string
+                  (object-handle obj))
+                 ")")))
 
 (defmethod pythonize ((obj real))
   "Write a real number. 
