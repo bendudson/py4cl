@@ -376,3 +376,14 @@ a = Test()")
                    (test-struct-x result))
     (assert-equalp 2
                    (test-struct-y result))))
+
+(defclass test-class ()
+  ((value :initarg :value)
+   (thing :initarg :thing)))
+  
+(deftest lisp-class-slots (pytests)
+  (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    (assert-equalp 23
+        (py4cl:python-call "lambda x : x.thing" object))
+    (assert-equalp 42
+        (py4cl:python-call "lambda x : x.value" object))))

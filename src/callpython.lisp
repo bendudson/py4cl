@@ -60,6 +60,11 @@ If still not alive, raises a condition."
   ;; Mark as not alive
   (setf *python* nil))
 
+(defun dispatch-reply (stream value)
+  (write-char #\r stream)
+  (stream-write-value value stream)
+  (force-output stream))
+
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
   (let ((read-stream (uiop:process-info-output process))
@@ -71,18 +76,27 @@ If still not alive, raises a condition."
                 (stream-read-value read-stream)))
          ;; Error
          (#\e (error 'python-error  
-                     :text (stream-read-string read-stream))
-              (return-from dispatch-messages nil))
+                     :text (stream-read-string read-stream)))
          ;; Delete object. This is called when an UnknownLispObject is deleted
          (#\d (free-handle (stream-read-value read-stream)))
+         ;; Slot access
+         (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
+                (let ((object (lisp-object handle)))
+                  ;; NOTE: Slots defined in a different package will not be accessible
+                  ;;     Get the package the class was defined in?
+                  ;; find-symbol, class-of
+                  
+                  (dispatch-reply write-stream
+                                  (if (slot-exists-p object slot-name)
+                                      ;; Return a list, to distinguish the no slot case
+                                      ;; from a slot containing NIL
+                                      (list (slot-value object slot-name)))))))
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
             (let ((return-value (apply (get-callback (first call-value)) (second call-value))))
               ;; Send a reply
-              (write-char #\r write-stream)
-              (stream-write-value return-value write-stream)
-              (force-output write-stream))))
+              (dispatch-reply write-stream return-value))))
          (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval* (cmd-char &rest args)
