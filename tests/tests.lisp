@@ -56,6 +56,16 @@
   (assert-equalp "say \"hello\" world"
       (py4cl:python-eval "'say \"hello\"' + ' world'")))
 
+(deftest pythonize-format-string (tests)
+  (print (py4cl::pythonize (format nil "foo")))
+  (assert-equalp "\"foo\""
+                 (py4cl::pythonize (format nil "foo"))))
+
+(deftest eval-format-string (pytests)
+  (assert-equalp "foo"
+                 (py4cl:python-eval
+                  (py4cl::pythonize (format nil "foo")))))
+
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
   (unless (= 2 (first (py4cl:python-version-info)))

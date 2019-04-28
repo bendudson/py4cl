@@ -122,6 +122,18 @@ reader; the lisp function =pythonize= outputs strings which can be
 Note that python does not have all the numerical types which lisp has,
 for example rational numbers or complex integers.
 
+Because `python-eval` and `python-exec` evaluate strings as python
+expressions, strings passed to them are not escaped or converted as
+other types are. To pass a string to python as an argument, call `py4cl::pythonize`
+
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:python-eval "len(" (py4cl::pythonize my-str) ")" ))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
 If python objects cannot be converted into a lisp value, then they are
 stored and a handle is returned to lisp. This handle can be used to
 manipulate the object, and when it is garbage collected the python
