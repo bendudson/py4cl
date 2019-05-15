@@ -368,3 +368,9 @@ a = Test()")
   
   (assert-false (py4cl:python-alive-p)))
 
+(deftest python-method (pytests)
+  (assert-equalp 3
+      (py4cl:python-method '(1 2 3) '__len__))
+  (assert-equalp "hello world"
+      (py4cl:python-method "hello {0}" 'format "world")))
+

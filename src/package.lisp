@@ -13,6 +13,7 @@
    #:python-exec
    #:python-call
    #:python-call-async
+   #:python-method
    #:import-function
    #:import-module
    #:export-function

@@ -179,6 +179,26 @@ Keywords are translated, with the symbol made lowercase:
 #+RESULTS:
 : -1
 
+** Calling python methods
+
+Python methods on objects can be called by using the =python-method= function. The first argument
+is the object (including strings, arrays, tuples); the second argument is either a string or a symbol
+specifying the method, followed by any arguments:
+#+BEGIN_SRC lisp
+(py4cl::python-method "hello {0}" 'format "world") ; => "hello world"
+#+END_SRC
+
+#+RESULTS:
+: hello world
+
+#+BEGIN_SRC lisp
+(py4cl::python-method '(1 2 3) '__len__) ; => 3
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+
 ** Asynchronous python functions
 
 One of the advantages of using streams to communicate with a separate

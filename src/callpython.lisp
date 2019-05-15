@@ -162,6 +162,26 @@ Returns a lambda which when called returns the result."
             ;; If no handle then already have the value
             value)))))
 
+(defun python-method (obj method-name &rest args)
+  "Call a given method on an object OBJ. METHOD-NAME can be a
+symbol (converted to lower case) or a string. 
+
+Examples:
+ 
+  (python-method \"hello {0}\" 'format \"world\") 
+  ; => \"hello world\"
+
+  (python-method '(1 2 3) '__len__)
+  ; => 3
+"
+  (python-start-if-not-alive)
+  (py4cl:python-eval
+   (py4cl::pythonize obj)
+   (format nil ".~(~a~)" method-name)
+   (if args 
+       (py4cl::pythonize args)
+       "()")))
+
 (defmacro import-function (fun-name &key docstring
                                       (as (read-from-string fun-name)))
   "Define a function which calls python
