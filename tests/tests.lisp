@@ -374,3 +374,19 @@ a = Test()")
   (assert-equalp "hello world"
       (py4cl:python-method "hello {0}" 'format "world")))
 
+(deftest chain (pytests)
+  (assert-equalp "Hello world"
+      (py4cl:chain "hello {0}" (format "world") (capitalize)))
+  (assert-equalp "hello world"
+      (let ((format-str "hello {0}")
+            (argument "world"))
+        (py4cl:chain format-str (format argument))))
+  (assert-equalp "result: 3"
+      (py4cl:chain "result: {0}" (format (+ 1 2))))
+  (assert-equalp 3
+      (py4cl:chain (range 3) stop))
+  (assert-equalp "o"
+      (py4cl:chain "hello" 4)))
+
+
+    
