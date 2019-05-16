@@ -384,7 +384,7 @@ a = Test()")
   (assert-equalp "result: 3"
       (py4cl:chain "result: {0}" (format (+ 1 2))))
   (assert-equalp 3
-      (py4cl:chain (range 3) stop))
+      (py4cl:chain (slice 3) stop))
   (assert-equalp "o"
       (py4cl:chain "hello" 4)))
 

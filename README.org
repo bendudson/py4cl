@@ -231,12 +231,20 @@ If the first argument is a list, then it is assumed to be a python
 function to be called; otherwise it is evaluated before converting to
 a python value. For example
 #+BEGIN_SRC lisp
-(py4cl:chain (range 3) stop)
+(py4cl:chain (slice 3) stop)
 #+END_SRC
+
+#+RESULTS:
+: 3
+
 is converted to the python:
 #+BEGIN_SRC python
-range(3).stop
+return slice(3).stop
 #+END_SRC
+
+#+RESULTS:
+: 3
+
 Symbols as first argument, or arguments to python methods, are
 evaluated, so the following works:
 #+BEGIN_SRC lisp
