@@ -71,8 +71,7 @@ If still not alive, raises a condition."
                 (stream-read-value read-stream)))
          ;; Error
          (#\e (error 'python-error  
-                     :text (stream-read-string read-stream))
-              (return-from dispatch-messages nil))
+                     :text (stream-read-string read-stream)))
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
