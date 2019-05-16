@@ -162,6 +162,75 @@ Returns a lambda which when called returns the result."
             ;; If no handle then already have the value
             value)))))
 
+(defun python-method (obj method-name &rest args)
+  "Call a given method on an object OBJ. METHOD-NAME can be a
+symbol (converted to lower case) or a string. 
+
+Examples:
+ 
+  (python-method \"hello {0}\" 'format \"world\") 
+  ; => \"hello world\"
+
+  (python-method '(1 2 3) '__len__)
+  ; => 3
+"
+  (python-start-if-not-alive)
+  (py4cl:python-eval
+   (py4cl::pythonize obj)
+   (format nil ".~(~a~)" method-name)
+   (if args 
+       (py4cl::pythonize args)
+       "()")))
+
+(defmacro chain (target &rest chain)
+  "Chain method calls, member access, and indexing operations
+on objects. The operations in CHAIN are applied in order from
+first to last to the TARGET object.
+
+TARGET can be
+  cons -- a python function to call, returning an object to operate on
+  otherwise -- a value, to be converted to a python value
+
+CHAIN can consist of
+   cons   -- a method to call
+   symbol -- a member data variable
+   otherwise -- a value put between [] brackets to access an index
+
+Examples:
+
+  (chain \"hello {0}\" (format \"world\") (capitalize)) 
+     => python: \"hello {0}\".format(\"world\").capitalize()
+     => \"Hello world\"
+
+  (chain (range 3) stop) 
+     => python: range(3).stop
+     => 3
+
+  (chain \"hello\" 4)
+     => python: \"hello\"[4]
+     => \"o\"
+"
+  (python-start-if-not-alive)
+  `(py4cl:python-eval
+    ;; TARGET 
+    ,@(if (consp target)
+          (list (format nil "~(~a~)" (first target))
+                (if (rest target)
+                    `(list ,@(rest target)) 
+                    "()"))
+          (list (list 'py4cl::pythonize target)))
+    ;; CHAIN
+    ,@(loop for link in chain
+         appending
+           (cond
+             ((consp link) (list (format nil ".~(~a~)" (first link))
+                                 (if (rest link)
+                                     `(list ,@(rest link)) 
+                                     "()")))
+             ((symbolp link) (list (format nil ".~(~a~)" link)))
+             (t (list "[" (list 'py4cl::pythonize link) "]"))))))
+
+
 (defmacro import-function (fun-name &key docstring
                                       (as (read-from-string fun-name)))
   "Define a function which calls python
