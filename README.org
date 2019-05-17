@@ -264,13 +264,24 @@ Arguments to methods are lisp, since only the top level forms in =chain= are tre
 #+RESULTS:
 : result: 3
 
-Values at the top level (not symbols) are converted to python types
-and enclosed in =[]= brackets (usually =__getitem__= method in
-python). For example:
+Indexing with =[]= brackets is commonly used in python, which calls the =__getitem__= method.
+This method can be called like any other method
 #+BEGIN_SRC lisp
-(py4cl:chain "hello" 4) ; => "o"
+(py4cl:chain "hello" (__getitem__ 4)) ; => "o"
 #+END_SRC
-is converted to the python
+
+#+RESULTS:
+: o
+
+but since this is a common method an alias =[]= is supported:
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" ([] 4)) ; => "o"
+#+END_SRC
+
+#+RESULTS:
+: o
+
+which is converted to the python
 #+BEGIN_SRC python
 return "hello"[4]
 #+END_SRC
@@ -278,9 +289,18 @@ return "hello"[4]
 #+RESULTS:
 : o
 
+For simple cases where the index is a value like a number or string
+(not a symbol or a list), the brackets can be omitted:
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" 4) ; => "o"
+#+END_SRC
+
+#+RESULTS:
+: o
+
 Slicing can be done by calling the python =slice= function:
 #+BEGIN_SRC lisp
-(py4cl:chain "hello" (__getitem__ (py4cl:python-call "slice" 2 4)))  ; => "ll"
+(py4cl:chain "hello" ([] (py4cl:python-call "slice" 2 4)))  ; => "ll"
 #+END_SRC
 
 #+RESULTS:
@@ -289,11 +309,19 @@ Slicing can be done by calling the python =slice= function:
 which could be imported as a lisp function (see below):
 #+BEGIN_SRC lisp
 (py4cl:import-function "slice")
-(py4cl:chain "hello" (__getitem__ (slice 2 4))) ; => "ll"
+(py4cl:chain "hello" ([] (slice 2 4))) ; => "ll"
 #+END_SRC
 
 #+RESULTS:
 : ll
+
+This of course also works with multidimensional arrays:
+#+BEGIN_SRC lisp
+(py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2)))  ;=> #(4 5)
+#+END_SRC
+
+#+RESULTS:
+| 4 | 5 |
 
 ** Asynchronous python functions
 

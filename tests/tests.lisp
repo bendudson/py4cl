@@ -374,6 +374,10 @@ a = Test()")
   (assert-equalp "hello world"
       (py4cl:python-method "hello {0}" 'format "world")))
 
+
+;; Shorter more convenient slicing
+(py4cl:import-function "slice")
+
 (deftest chain (pytests)
   (assert-equalp "Hello world"
       (py4cl:chain "hello {0}" (format "world") (capitalize)))
@@ -385,8 +389,26 @@ a = Test()")
       (py4cl:chain "result: {0}" (format (+ 1 2))))
   (assert-equalp 3
       (py4cl:chain (slice 3) stop))
+
+  ;; Anything not a list or a symbol is put between [] brackets (__getitem__)
   (assert-equalp "o"
-      (py4cl:chain "hello" 4)))
+      (py4cl:chain "hello" 4))
+
+  ;; [] operator for indexing and slicing (alias for __getitem__)
+  
+  (assert-equalp "l"
+      (py4cl:chain "hello" ([] 3)))
+  (assert-equalp 3
+      (py4cl:chain #2A((1 2) (3 4))  ([] 1 0)))
+  (assert-equalp #(4 5)
+      (py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2))))
+
+  (let ((dict (py4cl:python-eval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
+    (assert-equalp "world"
+        (py4cl:chain dict "hello"))
+    (assert-equalp "pong"
+        (py4cl:chain dict ([] "ping")))))
+  
 
 
     
