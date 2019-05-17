@@ -222,10 +222,20 @@ Examples:
     ,@(loop for link in chain
          appending
            (cond
-             ((consp link) (list (format nil ".~(~a~)" (first link))
+             ((consp link)
+              ;; A list. Usually a method to call, but [] indicates __getitem__
+              (if (string= (first link) "[]")
+                  ;; Calling the __getitem__ method
+                  (list "[" (list 'py4cl::pythonize  ; So that strings are escaped
+                                  (if (cddr link)
+                                      (append '(list) (rest link)) ; More than one -> wrap in list/tuple
+                                      (cadr link))) ; Only one -> no tuple
+                        "]")
+                  ;; Calling a method
+                  (list (format nil ".~(~a~)" (first link))
                                  (if (rest link)
-                                     `(list ,@(rest link)) 
-                                     "()")))
+                                     (append '(list) (rest link))
+                                     "()"))))
              ((symbolp link) (list (format nil ".~(~a~)" link)))
              (t (list "[" (list 'py4cl::pythonize link) "]"))))))
 
