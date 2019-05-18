@@ -79,7 +79,12 @@ which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting
 (plt:show)
 #+END_SRC
 
-For more direct access to the python subprocess, =python-eval=
+More detailed examples of using python packages using =py4cl=:
+ - [[./docs/matplotlib.org][Matplotlib plotting]]
+
+** Direct evaluation of python code
+
+For direct access to the python subprocess, =python-eval=
 evaluates an expression, converting the result to a suitable lisp
 type. Note that there are nicer, more lispy wrappers around this function,
 described below, but they are mostly built on top of =python-eval=.
@@ -409,7 +414,7 @@ Functions in the =PLT= package can be used to make simple plots:
 #+RESULTS:
 : NIL
 
-* Exporting a function to python
+** Exporting a function to python
 
 Lisp functions can be passed as arguments to =python-call= 
 or imported functions:
