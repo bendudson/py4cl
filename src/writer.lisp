@@ -62,10 +62,12 @@ evals a list with a single element as a tuple
 
 (defmethod pythonize ((obj symbol))
   "Handle symbols. Need to handle NIL,
-converting it to Python None"
+converting it to Python None, and convert T to True."
   (if obj
-      (concatenate 'string
-                   "_py4cl_Symbol(':" (string-downcase (string obj)) "')")
+      (if (eq obj t)
+          "True"
+          (concatenate 'string
+                       "_py4cl_Symbol(':" (string-downcase (string obj)) "')"))
       "None"))
 
 (defmethod pythonize ((obj hash-table))
