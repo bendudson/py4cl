@@ -1,0 +1,147 @@
+* NumPy: creating and manipulating numerical data
+
+This section was adapted from the [[http://scipy-lectures.org/intro/numpy/][Scipy lecture notes]], which was written by 
+Emmanuelle Gouillart, Didrik Pinte, Gaël Varoquaux, and Pauli Virtanen.
+
+License: [[http://creativecommons.org/licenses/by/4.0/][Creative Commons Attribution 4.0 International License (CC-by)]]
+
+Adapted for [[https://github.com/bendudson/py4cl][py4cl]] by B.Dudson (2019).
+
+** Functions for creating arrays
+
+#+BEGIN_SRC lisp
+(np:ones '(3 3)) ; => #2A((1.0 1.0 1.0)
+                 ;        (1.0 1.0 1.0)
+                 ;        (1.0 1.0 1.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((1.0 1.0 1.0) (1.0 1.0 1.0) (1.0 1.0 1.0))
+
+#+BEGIN_SRC lisp
+(np:zeros '(2 2)) ; => #2A((0.0 0.0)
+                  ; =>     (0.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 0.0) (0.0 0.0))
+
+#+BEGIN_SRC lisp
+(np:arange 10) ; => #(0 1 2 3 4 5 6 7 8 9)
+#+END_SRC
+
+#+RESULTS:
+| 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+
+#+BEGIN_SRC lisp
+(np:eye 3)     ; => #2A((1.0 0.0 0.0)
+               ;        (0.0 1.0 0.0)
+               ;        (0.0 0.0 1.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((1.0 0.0 0.0) (0.0 1.0 0.0) (0.0 0.0 1.0))
+
+#+BEGIN_SRC lisp
+(np:diag #(1 2 3 4))  ; => #2A((1 0 0 0)
+                      ;        (0 2 0 0)
+                      ;        (0 0 3 0)
+                      ;        (0 0 0 4))
+#+END_SRC
+
+#+RESULTS:
+: #2A((1 0 0 0) (0 2 0 0) (0 0 3 0) (0 0 0 4))
+
+** Indexing and slicing
+
+For creating slices of arrays the python =slice= function can be imported:
+#+BEGIN_SRC lisp
+(py4cl:import-function "slice")
+#+END_SRC
+
+Using this, arrays can be sliced:
+#+BEGIN_SRC lisp
+(py4cl:chain (np.arange 10) ([] (slice 2 9 3))) ; (slice start end step)
+ ; => #(2 5 8)
+#+END_SRC
+
+#+RESULTS:
+| 2 | 5 | 8 |
+
+Note that the last index is not included:
+#+BEGIN_SRC lisp
+(py4cl:chain (np.arange 10) ([] (slice nil 4)))  ; => #(0 1 2 3)
+#+END_SRC
+
+#+RESULTS:
+| 0 | 1 | 2 | 3 |
+
+All three slice components are not required: by default, start is 0, end is the last and step is 1
+
+Reverse an array
+#+BEGIN_SRC lisp
+
+(py4cl:chain #(1 2 3 4) ([] (slice nil nil -1)))
+; => #(4 3 2 1)
+#+END_SRC
+
+#+RESULTS:
+| 4 | 3 | 2 | 1 |
+
+** Elementwise operations
+
+Important: Array multiplication is not matrix multiplication:
+#+BEGIN_SRC lisp
+(let ((c (np:ones '(3 3))))
+  (py4cl:python-eval c "*" c))
+
+  ; => #2A((1.0 1.0 1.0)
+  ;        (1.0 1.0 1.0)
+  ;        (1.0 1.0 1.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((1.0 1.0 1.0) (1.0 1.0 1.0) (1.0 1.0 1.0))
+
+Matrix multiplication:
+#+BEGIN_SRC lisp
+(let ((c (np:ones '(3 3))))
+  (py4cl:chain c (dot c)))
+  ; => #2A((3.0 3.0 3.0)
+  ;        (3.0 3.0 3.0)
+  ;        (3.0 3.0 3.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((3.0 3.0 3.0) (3.0 3.0 3.0) (3.0 3.0 3.0))
+
+** Basic reductions
+
+Computing sums
+#+BEGIN_SRC lisp
+(np:sum #(1 2 3 4)) ;=> 10
+#+END_SRC
+
+#+RESULTS:
+: 10
+
+#+BEGIN_SRC lisp
+(py4cl:chain (np.array #(1 2 3 4)) (sum)) ; => 10
+#+END_SRC
+
+#+RESULTS:
+: 10
+
+Sum by rows and by columns:
+#+BEGIN_SRC lisp
+(let ((x #2A((1 1) (2 2))))
+  (np:sum x :axis 0))  ; => #(3 3)
+#+END_SRC
+
+#+RESULTS:
+| 3 | 3 |
+
+#+BEGIN_SRC lisp
+(let ((x #2A((1 1) (2 2))))
+  (py4cl:chain x (sum :axis 0)))
+#+END_SRC
