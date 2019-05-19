@@ -409,6 +409,28 @@ a = Test()")
     (assert-equalp "pong"
         (py4cl:chain dict ([] "ping")))))
   
+(deftest chain-keywords (pytests)
+  (py4cl:python-exec
+   "def test_fn(arg, key=1):
+       return arg * key")
 
+  (assert-equalp 3
+      (py4cl:chain (test_fn 3)))
+  (assert-equalp 6
+      (py4cl:chain (test_fn 3 :key 2)))
+
+  (py4cl:python-exec
+   "class testclass:
+      def run(self, dummy = 1, value = 42):
+        return value")
+
+  (assert-equalp 42
+      (py4cl:chain (testclass) (run)))
+
+  (assert-equalp 31
+      (py4cl:chain (testclass) (run :value 31))))
+   
+   
+  
 
     

@@ -143,5 +143,8 @@ Sum by rows and by columns:
 
 #+BEGIN_SRC lisp
 (let ((x #2A((1 1) (2 2))))
-  (py4cl:chain x (sum :axis 0)))
+  (py4cl:chain x (sum :axis 1))) ; => #(2 4)
 #+END_SRC
+
+#+RESULTS:
+| 2 | 4 |
