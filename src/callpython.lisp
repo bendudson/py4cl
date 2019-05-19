@@ -181,6 +181,32 @@ Examples:
        (py4cl::pythonize args)
        "()")))
 
+(defun function-args (args)
+  "Internal function, intended to be called by the CHAIN macro.
+Converts function arguments to a list of strings and (pythonize )
+function calls. Handles keywords and insertion of commas. 
+Returns a list which can be passed to PYTHON-EVAL.
+
+Examples:
+
+  (py4cl::function-args '(1 :test 2))
+  => ((PY4CL::PYTHONIZE 1) \",\" \"test\" \"=\" (PY4CL::PYTHONIZE 2))
+"
+  (if (not args)
+      '("")
+      (if (keywordp (first args))
+          (append
+           (list (string-downcase (first args))
+                 "="
+                 `(pythonize ,(second args)))
+           (if (cddr args)
+               (append '(",") (function-args (cddr args)))))
+           
+          (append
+           (list `(pythonize ,(first args)))
+           (if (rest args)
+               (append '(",") (function-args (rest args))))))))
+
 (defmacro chain (target &rest chain)
   "Chain method calls, member access, and indexing operations
 on objects. The operations in CHAIN are applied in order from
@@ -194,6 +220,8 @@ CHAIN can consist of
    cons   -- a method to call
    symbol -- a member data variable
    otherwise -- a value put between [] brackets to access an index
+
+Keywords inside python function calls are converted to python keywords.
 
 Examples:
 
@@ -213,10 +241,12 @@ Examples:
   `(py4cl:python-eval
     ;; TARGET 
     ,@(if (consp target)
-          (list (format nil "~(~a~)" (first target))
-                (if (rest target)
-                    `(list ,@(rest target)) 
-                    "()"))
+          ;; A list -> python function call
+          `(,(string-downcase (first target))
+             "("
+             ,@(function-args (rest target))
+             ")")
+          ;; A value
           (list (list 'py4cl::pythonize target)))
     ;; CHAIN
     ,@(loop for link in chain
@@ -232,13 +262,13 @@ Examples:
                                       (cadr link))) ; Only one -> no tuple
                         "]")
                   ;; Calling a method
-                  (list (format nil ".~(~a~)" (first link))
-                                 (if (rest link)
-                                     (append '(list) (rest link))
-                                     "()"))))
+                  `("."
+                    ,(string-downcase (first link))
+                    "("
+                    ,@(function-args (rest link))
+                    ")")))
              ((symbolp link) (list (format nil ".~(~a~)" link)))
              (t (list "[" (list 'py4cl::pythonize link) "]"))))))
-
 
 (defmacro import-function (fun-name &key docstring
                                       (as (read-from-string fun-name)))
