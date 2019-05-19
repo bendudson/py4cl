@@ -90,6 +90,9 @@
   (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
     (py4cl:python-eval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
 
+  (assert-equalp #(1.0 2.0)
+      (py4cl:python-eval (vector 1.0 2.0)))
+  
   ;; Unless the values are strings
   (let ((str "hello"))
     (assert-condition py4cl:python-error
@@ -429,8 +432,16 @@ a = Test()")
 
   (assert-equalp 31
       (py4cl:chain (testclass) (run :value 31))))
-   
-   
-  
 
-    
+
+(deftest chain-strings (pytests)
+  (py4cl:python-exec
+   "class TestClass:
+      def doThing(self, dummy = 1, value = 42):
+        return value")
+  
+  (assert-equalp 42
+      (py4cl:chain ("TestClass") ("doThing")))
+
+  (assert-equalp 31
+      (py4cl:chain ("TestClass") ("doThing" :value 31))))

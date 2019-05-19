@@ -223,6 +223,9 @@ CHAIN can consist of
 
 Keywords inside python function calls are converted to python keywords.
 
+Functions can be specified using a symbol or a string. If a symbol is used
+then it is converted to python using STRING-DOWNCASE. 
+
 Examples:
 
   (chain \"hello {0}\" (format \"world\") (capitalize)) 
@@ -242,7 +245,10 @@ Examples:
     ;; TARGET 
     ,@(if (consp target)
           ;; A list -> python function call
-          `(,(string-downcase (first target))
+          `(,(let ((func (first target))) ; The function name
+               (if (stringp func)
+                   func  ; Leave string unmodified
+                   (string-downcase func))) ; Otherwise convert to lower-case string
              "("
              ,@(function-args (rest target))
              ")")
@@ -263,7 +269,10 @@ Examples:
                         "]")
                   ;; Calling a method
                   `("."
-                    ,(string-downcase (first link))
+                    ,(let ((func (first link)))
+                       (if (stringp func)
+                         func  ; Leave string unmodified
+                         (string-downcase func))) ; Otherwise convert to lower-case string
                     "("
                     ,@(function-args (rest link))
                     ")")))

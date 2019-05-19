@@ -7,6 +7,14 @@ License: [[http://creativecommons.org/licenses/by/4.0/][Creative Commons Attribu
 
 Adapted for [[https://github.com/bendudson/py4cl][py4cl]] by B.Dudson (2019).
 
+The following examples assume that you have already loaded =py4cl= and
+imported python modules as lisp packages using:
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+
+(py4cl:import-module "numpy" :as "np")
+#+END_SRC
+
 ** Functions for creating arrays
 
 #+BEGIN_SRC lisp
@@ -148,3 +156,14 @@ Sum by rows and by columns:
 
 #+RESULTS:
 | 2 | 4 |
+
+Slicing and then summing:
+#+BEGIN_SRC lisp
+(let ((x #2A((1 1) (2 2))))
+  (py4cl:chain x ([] 1 (slice 0 nil)) (sum))) ; => 4
+#+END_SRC
+
+#+RESULTS:
+: 4
+
+
