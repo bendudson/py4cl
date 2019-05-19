@@ -329,6 +329,22 @@ This of course also works with multidimensional arrays:
 #+RESULTS:
 | 4 | 5 |
 
+Sometimes the python functions or methods may contain upper case
+characters; class names often start with a capital letter. All symbols
+are converted to lower case, but the case can be controlled by passing
+a string rather than a symbol as the first element:
+#+BEGIN_SRC lisp
+;; Define a class
+(py4cl:python-exec
+   "class TestClass:
+      def doThing(self, value = 42):
+        return value")
+
+;; Create an object and call the method
+(py4cl:chain ("TestClass") ("doThing" :value 31))  ; => 31
+#+END_SRC
+Note that the keyword is converted, converting to lower case.
+
 ** Asynchronous python functions
 
 One of the advantages of using streams to communicate with a separate

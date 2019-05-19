@@ -429,8 +429,16 @@ a = Test()")
 
   (assert-equalp 31
       (py4cl:chain (testclass) (run :value 31))))
-   
-   
-  
 
-    
+
+(deftest chain-strings (pytests)
+  (py4cl:python-exec
+   "class TestClass:
+      def doThing(self, dummy = 1, value = 42):
+        return value")
+  
+  (assert-equalp 42
+      (py4cl:chain ("TestClass") ("doThing")))
+
+  (assert-equalp 31
+      (py4cl:chain ("TestClass") ("doThing" :value 31))))
