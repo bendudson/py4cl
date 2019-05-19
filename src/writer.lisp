@@ -31,11 +31,11 @@ which is interpreted correctly by python (3.7.2)."
   ;; First convert the array to 1D [0,1,2,3,...]
   (let ((array1d (with-output-to-string (stream)
                    (write-char #\[ stream)
-                   (princ (row-major-aref obj 0) stream)
+                   (princ (pythonize (row-major-aref obj 0)) stream)
                    (do ((indx 1 (1+ indx)))
                        ((>= indx (array-total-size obj)))
                      (write-char #\, stream)
-                     (princ (row-major-aref obj indx) stream))
+                     (princ (pythonize (row-major-aref obj indx)) stream))
                    (write-char #\] stream))))
     (if (= (array-rank obj) 1)
         ;; 1D array return as-is

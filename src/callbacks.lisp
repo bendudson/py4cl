@@ -4,7 +4,7 @@
 (in-package :py4cl)
 
 (defvar *callback-functions* (make-hash-table)
-  "Hash table whihc maps unique IDs to functions.")
+  "Hash table which maps unique IDs to functions.")
 
 (defvar *last-callback-function-id* 0
   "The ID used for the last callback function.")
