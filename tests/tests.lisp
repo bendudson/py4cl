@@ -98,9 +98,6 @@
   (assert-equalp #()
                  (py4cl:python-eval #()))
 
-  (assert-equalp #2A()
-                 (py4cl:python-eval #2A()))
-
   ;; Unless the values are strings
   (let ((str "hello"))
     (assert-condition py4cl:python-error
