@@ -141,6 +141,24 @@ other types are. To pass a string to python as an argument, call =py4cl::pythoni
 #+RESULTS:
 : 7
 
+Note that this escaping is done automatically by higher-level interfaces like
+=python-call= and =chain=:
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:python-call "len" my-str))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:chain (len my-str)))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
 If python objects cannot be converted into a lisp value, then they are
 stored and a handle is returned to lisp. This handle can be used to
 manipulate the object, and when it is garbage collected the python
@@ -150,6 +168,13 @@ object is also deleted (using the [[https://common-lisp.net/project/trivial-garb
 (destructuring-bind (fig ax) (plt:subplots)
   ;; fig is #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'matplotlib.figure.Figure'>" :HANDLE 6)
   (py4cl:python-eval ax ".plot(" #(0 1 0 1) ")")
+  (plt:show)) 
+#+END_SRC
+
+The interface to python objects is nicer using =chain= (see below):
+#+BEGIN_SRC lisp
+(destructuring-bind (fig ax) (plt:subplots)
+  (py4cl:chain ax (plot #(0 1 0 1)))
   (plt:show)) 
 #+END_SRC
 

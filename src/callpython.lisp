@@ -309,7 +309,7 @@ DOCSTRING is a string which becomes the function docstring
        ,(or docstring "Python function")
        (apply #'python-call ,fun-name args))))
 
-(defmacro import-module (module-name &key (as module-name as-supplied-p))
+(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
   "Import a python module as a Lisp package. The module name should be
 a string.
 
@@ -320,12 +320,23 @@ Example:
 or using 
 Keywords:
 AS specifies the name to be used for both the Lisp package and python module.
-It should be a string, and if not supplied then the module name is used.
+   It should be a string, and if not supplied then the module name is used.
+
+RELOAD specifies that the package should be deleted and reloaded.
+       By default if the package already exists then a string is returned.
 "
   (unless (typep module-name 'string)
     (error "Argument to IMPORT-MODULE must be a string"))
   (unless (typep as 'string)
     (error "Keyword argument AS to IMPORT-MODULE must be a string"))
+
+  ;; Check if the package already exists, and delete if reload is true
+  ;; This is so that it is reloaded into python
+  (let ((package-sym (read-from-string as)))
+    (if (find-package package-sym)
+        (if reload 
+            (delete-package package-sym)
+            (return-from import-module "Package already exists."))))
   
   ;; Ensure that python is running
   (python-start-if-not-alive)
@@ -348,8 +359,10 @@ It should be a string, and if not supplied then the module name is used.
         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
         ;; so that the result reflects changes to the readtable
         ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
+        ;; Note that the package doesn't use CL to avoid shadowing
         (*package* (make-package (string (read-from-string as))
-                                 :use '() )))
+                                 :use '())))
+    (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
             (loop for name across fn-names
                for fn-symbol = (read-from-string name)
