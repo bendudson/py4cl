@@ -28,6 +28,10 @@ which is interpreted correctly by python (3.7.2)."
                "j)"))
 
 (defmethod pythonize ((obj array))
+  ;; Handle case of empty array
+  (if (= (array-total-size obj) 0)
+      (return-from pythonize "[]"))
+  
   ;; First convert the array to 1D [0,1,2,3,...]
   (let ((array1d (with-output-to-string (stream)
                    (write-char #\[ stream)

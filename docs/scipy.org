@@ -1,0 +1,54 @@
+* Scipy : high-level scientific computing
+
+This section was adapted from the [[https://scipy-lectures.org/intro/scipy.html][Scipy lecture notes]], which was written by Gaël
+Varoquaux, Adrien Chauve, Andre Espaze, Emmanuelle Gouillart, and Ralf Gommers.
+
+License: [[http://creativecommons.org/licenses/by/4.0/][Creative Commons Attribution 4.0 International License (CC-by)]]
+
+Adapted for [[https://github.com/bendudson/py4cl][py4cl]] by B.Dudson (2019).
+
+The following examples assume that you have already loaded =py4cl= 
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+#+END_SRC
+
+#+RESULTS:
+| :PY4CL |
+
+** File input/output: =scipy.io=
+
+*** Matlab files: Loading and saving
+
+Import the =io= module:
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy" :as "np")
+(py4cl:import-module "scipy.io" :as "spio")
+#+END_SRC
+
+#+RESULTS:
+: Package already exists.
+
+#+BEGIN_SRC lisp :results output
+(py4cl:import-function "dict") ; Use to make dictionaries (hash tables)
+
+;; Create a 3x3 matrix and save to file.mat as "a"
+(spio:savemat "file.mat" (dict :a (np:ones '(3 3))))
+
+(let ((data (spio:loadmat "file.mat")))
+  (loop for key being the hash-keys of data
+        do (print (list key (gethash key data)))))
+#+END_SRC
+
+#+RESULTS:
+: 
+: ("__header__" #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'bytes'>" :HANDLE 9)) 
+: ("__version__" "1.0") 
+: ("__globals__" #()) 
+: ("a" #2A((1.0 1.0 1.0) (1.0 1.0 1.0) (1.0 1.0 1.0))) 
+
+#+BEGIN_SRC lisp
+(spio:loadmat "file.mat")
+#+END_SRC
+
+#+RESULTS:
+: #<HASH-TABLE :TEST EQUAL :COUNT 4 {1006F6F713}>
