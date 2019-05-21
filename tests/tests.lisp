@@ -462,4 +462,13 @@ a = Test()")
     
   (assert-equalp 3
                  (py4cl:python-eval 
-                  (py4cl:remote-objects (py4cl:python-eval "1+2")))))
+                  (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+
+  ;; Nested remote-object environments
+
+  (assert-equalp 'py4cl::python-object
+                 (type-of (py4cl:remote-objects
+                           (py4cl:remote-objects (py4cl:python-eval "1+2"))
+                           (py4cl:python-eval "1+2")))))
+
+

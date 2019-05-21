@@ -33,7 +33,8 @@ eval_locals = {}
 
 # Settings
 
-return_values = True # Try to return values to lisp. If False, always return a handle
+return_values = 0 # Try to return values to lisp. If > 0, always return a handle
+                  # A counter is used, rather than Boolean, to allow nested environments.
     
 ##################################################################
 # This code adapted from cl4py
@@ -104,7 +105,7 @@ def lispify(obj):
     
     If return_values is false then always creates a handle
     """
-    if not return_values:
+    if return_values > 0:
         return lispify_handle(obj)
 
     try:
@@ -237,10 +238,10 @@ def message_dispatch_loop():
                         async_results[handle] = e
     
             elif cmd_type == "O":  # Return only handles
-                return_values = False 
+                return_values += 1
 
             elif cmd_type == "o":  # Return values when possible (default)
-                return_values = True
+                return_values -= 1
                 
             elif cmd_type == "q": # Quit
                 sys.exit(0)
