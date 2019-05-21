@@ -90,9 +90,14 @@
   (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
     (py4cl:python-eval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
 
+  ;; Test handling of real numbers in arrays
   (assert-equalp #(1.0 2.0)
       (py4cl:python-eval (vector 1.0 2.0)))
-  
+
+  ;; Test empty arrays
+  (assert-equalp #()
+                 (py4cl:python-eval #()))
+
   ;; Unless the values are strings
   (let ((str "hello"))
     (assert-condition py4cl:python-error

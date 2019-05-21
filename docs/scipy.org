@@ -1,0 +1,133 @@
+* Scipy : high-level scientific computing
+
+This section was adapted from the [[https://scipy-lectures.org/intro/scipy.html][Scipy lecture notes]], which was written by Gaël
+Varoquaux, Adrien Chauve, Andre Espaze, Emmanuelle Gouillart, and Ralf Gommers.
+
+License: [[http://creativecommons.org/licenses/by/4.0/][Creative Commons Attribution 4.0 International License (CC-by)]]
+
+Adapted for [[https://github.com/bendudson/py4cl][py4cl]] by B.Dudson (2019).
+
+The following examples assume that you have already loaded =py4cl= 
+#+BEGIN_SRC lisp
+(ql:quickload :py4cl)
+#+END_SRC
+
+#+RESULTS:
+| :PY4CL |
+
+** File input/output: =scipy.io=
+
+*** Matlab files: Loading and saving
+
+Import the =io= module:
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy" :as "np")
+(py4cl:import-module "scipy.io" :as "spio")
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp
+(py4cl:import-function "dict") ; Use to make dictionaries (hash tables)
+
+;; Create a 3x3 matrix and save to file.mat as "a"
+(spio:savemat "file.mat" (dict :a (np:ones '(3 3))))
+
+;; Load file.mat returning a hash table
+(let ((data (spio:loadmat "file.mat")))
+  (gethash "a" data))
+
+; => #2A((1.0 1.0 1.0) (1.0 1.0 1.0) (1.0 1.0 1.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((1.0 1.0 1.0) (1.0 1.0 1.0) (1.0 1.0 1.0))
+: T
+
+** Linear algebra operations: =scipy.linalg=
+
+The scipy.linalg module provides standard linear algebra operations,
+relying on an underlying efficient implementation (BLAS, LAPACK).
+
+#+BEGIN_SRC lisp
+(py4cl:import-module "scipy.linalg" :as "linalg")
+#+END_SRC
+
+#+RESULTS:
+: T
+
+The =scipy.linalg.det= function computes the determinant of a square matrix:
+#+BEGIN_SRC lisp
+(linalg:det #2A((1 2) (3 4))) ; => -2.0
+#+END_SRC
+
+#+RESULTS:
+: -2.0
+
+#+BEGIN_SRC lisp
+(linalg:det (np:ones '(3 4))) ; => PY4CL:PYTHON-ERROR "expected square matrix"
+#+END_SRC
+
+The =scipy.linalg.inv= function computes the inverse of a square matrix:
+#+BEGIN_SRC lisp
+(linalg:inv #2A((1 2)
+                (3 4)))
+; => #2A((-2.0 1.0)
+;        (1.5 -0.5))
+#+END_SRC
+
+#+RESULTS:
+: #2A((-2.0 1.0) (1.5 -0.5))
+
+#+BEGIN_SRC lisp
+(let* ((arr #2A((1 2)
+                (3 4)))
+       (iarr (linalg:inv arr)))
+  (np:allclose (np:dot arr iarr) (np:eye 2))) ; => T
+#+END_SRC
+
+#+RESULTS:
+: T
+
+Finally computing the inverse of a singular matrix (its determinant is
+zero) will raise a condition:
+#+BEGIN_SRC lisp
+(linalg:inv #2A((3 2) (6 4))) ; => PY4CL:PYTHON-ERROR "singular matrix"
+#+END_SRC
+
+More advanced operations are available, for example singular-value
+decomposition (SVD):
+#+BEGIN_SRC lisp
+(let ((arr (py4cl:python-eval
+              (np:reshape (np:arange 9) '(3 3))
+              "+"
+              (np:diag '(1 0 1)))))
+  (destructuring-bind (uarr spec vharr) (linalg:svd arr)
+    spec))  ; => #(14.889826 0.45294237 0.29654968)
+#+END_SRC
+
+#+RESULTS:
+| 14.889826 | 0.45294237 | 0.29654968 |
+
+The original matrix can be re-composed by matrix multiplication of the
+outputs of svd with np.dot:
+#+BEGIN_SRC lisp
+(let ((arr (py4cl:python-eval
+              (np:reshape (np:arange 9) '(3 3))
+              "+"
+              (np:diag '(1 0 1)))))
+  (destructuring-bind (uarr spec vharr) (linalg:svd arr)
+    (let* ((sarr (np:diag spec))
+           (svd_mat (py4cl:chain uarr (dot sarr) (dot vharr))))
+      (np:allclose svd_mat arr)))) ; => T
+#+END_SRC
+
+#+RESULTS:
+: T
+
+SVD is commonly used in statistics and signal processing. Many other
+standard decompositions (QR, LU, Cholesky, Schur), as well as solvers
+for linear systems, are available in [[https://docs.scipy.org/doc/scipy/reference/linalg.html#module-scipy.linalg][scipy.linalg]].
+
+

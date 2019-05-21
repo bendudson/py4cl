@@ -82,6 +82,7 @@ which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting
 More detailed examples of using python packages using =py4cl=:
  - [[./docs/numpy.org][Numpy arrays]]
  - [[./docs/matplotlib.org][Matplotlib plotting]]
+ - [[./docs/scipy.org][Scipy scientific library]]
 
 ** Direct evaluation of python code
 

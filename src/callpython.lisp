@@ -280,7 +280,8 @@ Examples:
              (t (list "[" (list 'py4cl::pythonize link) "]"))))))
 
 (defmacro import-function (fun-name &key docstring
-                                      (as (read-from-string fun-name)))
+                                      (as (read-from-string fun-name))
+                                      from)
   "Define a function which calls python
 Example
   (py4cl:python-exec \"import math\")
@@ -294,11 +295,21 @@ AS specifies the symbol to be used in Lisp. This can be a symbol
 or a string. If a string is given then it is read using READ-FROM-STRING.
 
 DOCSTRING is a string which becomes the function docstring
+
+FROM specifies a module to load the function from. This will cause the python
+module to be imported into the python session.
 "
   ;; Note: a string input is used, since python is case sensitive
   (unless (typep fun-name 'string)
     (error "Argument to IMPORT-FUNCTION must be a string"))
-
+  
+  (if from
+      (progn
+        ;; Ensure that python is running
+        (python-start-if-not-alive)
+        ;; import the function into python
+        (python-exec "from " (string from) " import " fun-name)))
+  
   ;; Input AS specifies the Lisp symbol, either as a string or a symbol
   (let ((fun-symbol (typecase as
                       (string (read-from-string as))

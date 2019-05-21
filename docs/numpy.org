@@ -7,11 +7,12 @@ License: [[http://creativecommons.org/licenses/by/4.0/][Creative Commons Attribu
 
 Adapted for [[https://github.com/bendudson/py4cl][py4cl]] by B.Dudson (2019).
 
-The following examples assume that you have already loaded =py4cl= and
-imported python modules as lisp packages using:
+The following examples assume that you have already loaded =py4cl=
 #+BEGIN_SRC lisp
 (ql:quickload :py4cl)
-
+#+END_SRC
+and then imported python modules as lisp packages using:
+#+BEGIN_SRC lisp
 (py4cl:import-module "numpy" :as "np")
 #+END_SRC
 
