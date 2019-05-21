@@ -418,3 +418,30 @@ RELOAD specifies that the package should be deleted and reloaded.
     (write-char #\v stream)
     (force-output stream))
   (dispatch-messages *python*))
+
+(defmacro remote-objects (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets."
+  `(progn
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       ;; Turn on remote objects
+       (write-char #\O stream)
+       (force-output stream)
+       (unwind-protect
+            (progn ,@body)
+         ;; Turn off remote objects
+         (write-char #\o stream)
+         (force-output stream)))))
+
+(defmacro remote-objects* (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets.
+
+This version evaluates the result, returning it as a lisp value if possible.
+"
+  `(python-eval (remote-objects ,@body)))
+
+

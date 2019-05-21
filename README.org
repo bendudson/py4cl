@@ -84,7 +84,8 @@ More detailed examples of using python packages using =py4cl=:
  - [[./docs/matplotlib.org][Matplotlib plotting]]
  - [[./docs/scipy.org][Scipy scientific library]]
 
-** Direct evaluation of python code
+* Reference
+** Direct evaluation of python code: =python-eval=, =python-exec=
 
 For direct access to the python subprocess, =python-eval=
 evaluates an expression, converting the result to a suitable lisp
@@ -183,7 +184,7 @@ The python process can be explicitly started and stopped using
 =python-start= and =python-stop=, but =py4cl= functions start python
 automatically if needed by calling =python-start-if-not-alive=.
 
-** Calling python functions
+** Calling python functions: =python-call=
 
 =python-call= can be used to pass arguments to any python callable, 
 such as a function in a module:
@@ -212,7 +213,7 @@ Keywords are translated, with the symbol made lowercase:
 #+RESULTS:
 : -1
 
-** Calling python methods
+** Calling python methods: =python-method=
 
 Python methods on objects can be called by using the =python-method= function. The first argument
 is the object (including strings, arrays, tuples); the second argument is either a string or a symbol
@@ -231,7 +232,7 @@ specifying the method, followed by any arguments:
 #+RESULTS:
 : 3
 
-** Chaining python methods
+** Chaining python methods: =chain=
 
 In python it is quite common to apply a chain of method calls, data
 member access, and indexing operations to an object. To make this work
@@ -371,7 +372,7 @@ a string rather than a symbol as the first element:
 #+END_SRC
 Note that the keyword is converted, converting to lower case.
 
-** Asynchronous python functions
+** Asynchronous python functions: =python-call-async=
 
 One of the advantages of using streams to communicate with a separate
 python process, is that the python and lisp processes can run at the
@@ -394,7 +395,7 @@ function may not be able to finish until the thunk is called. This
 should not result in deadlocks, because all =py4cl= functions can
 service callbacks while waiting for a result.
 
-** Importing functions
+** Importing functions: =import-function=
 
 Python functions can be made available in Lisp by using =import-function=. By
 default this makes a function which can take any number of arguments, and then
@@ -422,7 +423,7 @@ used with either a string or symbol:
 
 This is implemented as a macro which defines a function which in turn calls =python-call=.
 
-** Importing modules
+** Importing modules: =import-module=
 
 Python modules can be imported as lisp packages using =import-module=.
 For example, to import the [[https://matplotlib.org/][matplotlib]] plotting library, and make its functions
@@ -457,7 +458,7 @@ Functions in the =PLT= package can be used to make simple plots:
 #+RESULTS:
 : NIL
 
-** Exporting a function to python
+** Exporting a function to python: =export-function=
 
 Lisp functions can be passed as arguments to =python-call= 
 or imported functions:
@@ -486,3 +487,42 @@ Lisp functions can be made available to python code using =export-function=:
 #+RESULTS:
 : 0.4213504
 
+** Manipulating objects remotely: =remote-objects=
+
+If a sequence of python functions and methods are being used to manipulate data,
+then data may be passed between python and lisp. This is fine for small amounts
+of data, but inefficient for large datasets.
+
+The =remote-objects= and =remote-objects*= macros provide =unwind-protect= environments
+in which all python functions return handles rather than values to lisp. This enables
+python functions to be combined without transferring much data.
+
+The difference between these macros is =remote-objects= returns a handle, but
+=remote-objects*= evaluates the result, and so will return a value if possible.
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects (py4cl:python-eval "1+2")) ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
+#+END_SRC
+
+#+RESULTS:
+: #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 4)
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects* (py4cl:python-eval "1+2")) ; => 3
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+The advantage comes when dealing with large arrays or other datasets:
+#+BEGIN_SRC lisp
+(time (np:sum (np:arange 1000000)))
+; => 3.672 seconds of real time
+;    390,958,896 bytes consed
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(time (py4cl:remote-objects* (np:sum (np:arange 1000000))))
+; => 0.025 seconds of real time
+;    32,544 bytes consed
+#+END_SRC

@@ -450,3 +450,16 @@ a = Test()")
 
   (assert-equalp 31
       (py4cl:chain ("TestClass") ("doThing" :value 31))))
+
+(deftest remote-objects (pytests)
+  ;; REMOTE-OBJECTS returns a handle
+  (assert-equalp 'py4cl::python-object
+                 (type-of (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+
+  ;; REMOTE-OBJECTS* returns a value
+  (assert-equalp 3
+                 (py4cl:remote-objects* (py4cl:python-eval "1+2")))
+    
+  (assert-equalp 3
+                 (py4cl:python-eval 
+                  (py4cl:remote-objects (py4cl:python-eval "1+2")))))
