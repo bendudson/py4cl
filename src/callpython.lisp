@@ -1,64 +1,9 @@
 (in-package :py4cl)
 
-(defvar *python-command* "python"
-  "String, the Python executable to launch
-e.g. \"python\" or \"python3\"")
-
-(defvar *python* nil
-  "Most recently started python subprocess")
-
 (define-condition python-error (error)
   ((text :initarg :text :reader text))
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
-
-(defun python-start (&optional (command *python-command*))
-  "Start a new python subprocess
-This sets the global variable *python* to the process handle,
-in addition to returning it.
-COMMAND is a string with the python executable to launch e.g. \"python\"
-By default this is is set to *PYTHON-COMMAND*
-"
-  (setf *python*
-        (uiop:launch-program
-         (concatenate 'string
-                      command  ; Run python executable
-                      " "
-                      ;; Path *base-pathname* is defined in py4cl.asd
-                      ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream)))
-
-(defun python-alive-p (&optional (process *python*))
-  "Returns non-NIL if the python process is alive
-(e.g. SBCL -> T, CCL -> RUNNING).
-Optionally pass the process object returned by PYTHON-START"
-  (and process
-       (uiop:process-alive-p process)))
-
-(defun python-start-if-not-alive ()
-  "If no python process is running, tries to start it.
-If still not alive, raises a condition."
-  (unless (python-alive-p)
-    (python-start))
-  (unless (python-alive-p)
-    (error "Could not start python process")))
-
-(defun python-stop (&optional (process *python*))
-  ;; If python is not running then return
-  (unless (python-alive-p process)
-    (return-from python-stop))
-
-  ;; First ask python subprocess to quit
-  ;; Could give it a few seconds to close nicely
-  (let ((stream (uiop:process-info-input process)))
-    (write-char #\q stream))
-  ;; Close input, output streams
-  (uiop:close-streams process)
-  ;; Terminate
-  (uiop:terminate-process process)
-  ;; Mark as not alive
-  (setf *python* nil))
 
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
@@ -279,117 +224,6 @@ Examples:
              ((symbolp link) (list (format nil ".~(~a~)" link)))
              (t (list "[" (list 'py4cl::pythonize link) "]"))))))
 
-(defmacro import-function (fun-name &key docstring
-                                      (as (read-from-string fun-name))
-                                      from)
-  "Define a function which calls python
-Example
-  (py4cl:python-exec \"import math\")
-  (py4cl:import-function \"math.sqrt\")
-  (math.sqrt 42)
-  -> 6.4807405
-
-Keywords:
-
-AS specifies the symbol to be used in Lisp. This can be a symbol
-or a string. If a string is given then it is read using READ-FROM-STRING.
-
-DOCSTRING is a string which becomes the function docstring
-
-FROM specifies a module to load the function from. This will cause the python
-module to be imported into the python session.
-"
-  ;; Note: a string input is used, since python is case sensitive
-  (unless (typep fun-name 'string)
-    (error "Argument to IMPORT-FUNCTION must be a string"))
-  
-  (if from
-      (progn
-        ;; Ensure that python is running
-        (python-start-if-not-alive)
-        ;; import the function into python
-        (python-exec "from " (string from) " import " fun-name)))
-  
-  ;; Input AS specifies the Lisp symbol, either as a string or a symbol
-  (let ((fun-symbol (typecase as
-                      (string (read-from-string as))
-                      (symbol as)
-                      (t (error "AS keyword must be string or symbol")))))
-    
-    `(defun ,fun-symbol (&rest args)
-       ,(or docstring "Python function")
-       (apply #'python-call ,fun-name args))))
-
-(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
-  "Import a python module as a Lisp package. The module name should be
-a string.
-
-Example:
-  (py4cl:import-module \"math\")
-  (math:sqrt 4)   ; => 2.0
-
-or using 
-Keywords:
-AS specifies the name to be used for both the Lisp package and python module.
-   It should be a string, and if not supplied then the module name is used.
-
-RELOAD specifies that the package should be deleted and reloaded.
-       By default if the package already exists then a string is returned.
-"
-  (unless (typep module-name 'string)
-    (error "Argument to IMPORT-MODULE must be a string"))
-  (unless (typep as 'string)
-    (error "Keyword argument AS to IMPORT-MODULE must be a string"))
-
-  ;; Check if the package already exists, and delete if reload is true
-  ;; This is so that it is reloaded into python
-  (let ((package-sym (read-from-string as)))
-    (if (find-package package-sym)
-        (if reload 
-            (delete-package package-sym)
-            (return-from import-module "Package already exists."))))
-  
-  ;; Ensure that python is running
-  (python-start-if-not-alive)
-
-  ;; Import the required module in python
-  (if as-supplied-p
-      (python-exec (concatenate 'string
-                                "import " module-name " as " as))
-      (python-exec (concatenate 'string
-                                "import " module-name)))
-
-  ;; Also need to import the "inspect" module
-  (python-exec "import inspect")
-
-  ;; fn-names  All callables whose names don't start with "_"
-  (let ((fn-names (python-eval (concatenate 'string
-                                            "[name for name, fn in inspect.getmembers("
-                                            as
-                                            ", callable) if name[0] != '_']")))
-        ;; Get the package name by passing through reader, rather than using STRING-UPCASE
-        ;; so that the result reflects changes to the readtable
-        ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
-        ;; Note that the package doesn't use CL to avoid shadowing
-        (*package* (make-package (string (read-from-string as))
-                                 :use '())))
-    (import '(cl:nil)) ; So that missing docstring is handled
-    (append '(progn)
-            (loop for name across fn-names
-               for fn-symbol = (read-from-string name)
-               for fullname = (concatenate 'string as "." name) ; Include module prefix
-               append `((import-function ,fullname :as ,fn-symbol
-                            :docstring ,(python-eval (concatenate 'string
-                                                                  as "." name ".__doc__")))
-                        (export ',fn-symbol ,*package*))))))
-
-(defun export-function (function python-name)
-  "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
-  (let ((id (register-callback function)))
-    (python-exec (concatenate 'string
-                              "def " python-name "(*args, **kwargs):
-    return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
-
 (defun python-setf (&rest args)
   "Set python variables in ARGS (\"var1\" value1 \"var2\" value2 ...) "
   ;; pairs converts a list (a b c d) into a list of pairs ((a b) (c d))
@@ -410,14 +244,6 @@ RELOAD specifies that the package should be deleted and reloaded.
       (force-output stream))
     ;; Should get T returned, might be error
     (dispatch-messages *python*)))
-
-(defun python-version-info ()
-  "Return a list, using the result of python's sys.version_info."
-  (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input *python*)))
-    (write-char #\v stream)
-    (force-output stream))
-  (dispatch-messages *python*))
 
 (defmacro remote-objects (&body body)
   "Ensures that all values returned by python functions

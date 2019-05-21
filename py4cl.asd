@@ -7,11 +7,14 @@
   :license "MIT"
   :depends-on ("trivial-garbage")
   :pathname #P"src/"
+  :serial t
   :components ((:file "package")
                (:file "reader")
                (:file "writer")
                (:file "callbacks")
-               (:file "callpython"))
+               (:file "python-process")
+               (:file "callpython")
+               (:file "import-export"))
   :in-order-to ((test-op (test-op "py4cl/tests"))))
 
 ;; This is to store the path to the source code
