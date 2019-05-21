@@ -151,11 +151,16 @@ def return_error(err):
     """
     Send an error message
     """
+    global return_values
+    
+    old_return_values = return_values # Save to restore after
     try:
+        return_values = 0 # Need to return the error, not a handle
         sys.stdout = write_stream
         write_stream.write("e")
         send_value(str(err))
     finally:
+        return_values = old_return_values
         sys.stdout = redirect_stream
 
 def return_value(value):
@@ -215,7 +220,10 @@ def message_dispatch_loop():
                         args.append(arg)
                 
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
-                function = eval(fn_name, eval_globals, eval_locals)
+                if callable(fn_name):
+                    function = fn_name # Already callable
+                else:
+                    function = eval(fn_name, eval_globals, eval_locals)
                 if cmd_type == "f":
                     # Run function then return value
                     return_value( function(*args, **kwargs) )

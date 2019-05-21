@@ -471,4 +471,7 @@ a = Test()")
                            (py4cl:remote-objects (py4cl:python-eval "1+2"))
                            (py4cl:python-eval "1+2")))))
 
+(deftest call-callable-object (pytests)
+  (assert-equalp 6
+      (py4cl:python-call (py4cl:python-eval "lambda x : 2*x") 3)))
 
