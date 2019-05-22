@@ -458,6 +458,15 @@ Functions in the =PLT= package can be used to make simple plots:
 #+RESULTS:
 : NIL
 
+Notes:
+ -  =import-module= should be used as a top-level form, to ensure that
+   the package is defined before it is used.
+
+- If using =import-module= within [[https://orgmode.org/worg/org-contrib/babel/][org-mode babel]] then the import
+  should be done in a separate code block to the first use of the
+  imported package, or a condition will be raised like "Package NP
+  does not exist."
+
 ** Exporting a function to python: =export-function=
 
 Lisp functions can be passed as arguments to =python-call= 
@@ -526,3 +535,59 @@ The advantage comes when dealing with large arrays or other datasets:
 ; => 0.025 seconds of real time
 ;    32,544 bytes consed
 #+END_SRC
+** =setf=-able places
+
+The =python-eval= function is =setf=-able, so that python objects can
+be assigned to by using =setf=. Since =chain= uses =python-eval=, it is also
+=setf=-able. This can be used to set elements in an array, entries in a dict/hash-table, 
+or object data members, for example:
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy" :as "np")
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects*
+  (let ((array (np:zeros '(2 2))))
+    (setf (py4cl:chain array ([] 0 1)) 1.0
+          (py4cl:chain array ([] 1 0)) -1.0)
+    array)) 
+; => #2A((0.0 1.0)
+;        (-1.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 1.0) (-1.0 0.0))
+
+Note that this modifies the value in python, so the above example only
+works because =array= is a handle to a python object, rather than an
+array which is stored in lisp. The following therefore does not work:
+#+BEGIN_SRC lisp
+(let ((array (np:zeros '(2 2))))
+  (setf (py4cl:chain array ([] 0 1)) 1.0
+        (py4cl:chain array ([] 1 0)) -1.0)
+  array)
+; => #2A((0.0 0.0)
+;        (0.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 0.0) (0.0 0.0))
+
+The =np:zeros= function returned an array to lisp; the array was then
+sent to python and modified in python. The modified array is not
+returned, since this would mean transferring the whole array. If the
+value is in lisp then just use the lisp functions:
+#+BEGIN_SRC lisp
+(let ((array (np:zeros '(2 2))))
+  (setf (aref array 0 1) 1.0
+        (aref array 1 0) -1.0)
+  array)
+; => #2A((0.0 1.0)
+;        (-1.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 1.0) (-1.0 0.0))

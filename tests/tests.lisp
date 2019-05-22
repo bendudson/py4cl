@@ -475,3 +475,34 @@ a = Test()")
   (assert-equalp 6
       (py4cl:python-call (py4cl:python-eval "lambda x : 2*x") 3)))
 
+(deftest setf-eval (pytests)
+  (setf (py4cl:python-eval "test_value") 42) ; Set a variable
+  (assert-equalp 42
+                 (py4cl:python-eval "test_value")))  
+
+(deftest setf-chain (pytests)
+  (assert-equalp #(0 5 2 -1)
+                 (py4cl:remote-objects*
+                   (let ((list (py4cl:python-eval "[0, 1, 2, 3]")))
+                     (setf (py4cl:chain list ([] 1)) 5
+                           (py4cl:chain list ([] -1)) -1)
+                     list)))
+
+  (assert-equalp "world"
+      (py4cl:remote-objects*
+        (let ((dict (py4cl:python-eval "{}")))
+          (setf (py4cl:chain dict ([] "hello")) "world")
+          (py4cl:chain dict ([] "hello")))))
+  
+  ;; Define an empty class which can be modified
+  (py4cl:python-exec "
+class testclass:
+  pass")
+  
+  (let ((obj (py4cl:chain (testclass))))
+    (setf (py4cl:chain obj data_attrib) 21)
+    (assert-equalp 21
+                   (py4cl:chain obj data_attrib))))
+
+
+   

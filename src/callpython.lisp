@@ -61,6 +61,18 @@ Examples:
 "
   (apply #'python-eval* #\e args))
 
+(defun (setf python-eval) (value &rest args)
+  "Set an expression to a value. Just adds \"=\" and the value
+to the end of the expression. Note that the result is evaluated
+with exec rather than eval.
+
+Examples:
+
+    (setf (python-eval \"a\") 2)  ; python \"a=2\"
+"
+  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
+  value)
+
 (defun python-exec (&rest args)
   "Execute (using exec) an expression in python.
 This is used for statements rather than expressions.
