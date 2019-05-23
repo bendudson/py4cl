@@ -29,11 +29,30 @@
          ;; Slot access
          (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
                 (let* ((object (lisp-object handle))
-                       (handler (get-class-handler object)))
+                       (handler (get-handler object)))
                   ;; User must register a function to handle slot access
                   (dispatch-reply write-stream
-                                  (if handler
-                                      (funcall handler object slot-name))))))
+                                  (restart-case 
+                                      (if handler
+                                          (funcall handler object slot-name)
+                                          (error 'missing-handler-error
+                                                 :object object :slot-name slot-name))
+                                    ;; Provide some restarts for missing handler or missing slot
+                                    (return-nil () nil)
+                                    (return-zero () 0)
+                                    (enter-value (return-value)
+                                      :report "Provide a value to return"
+                                      :interactive (lambda ()
+                                                     (format t "Enter a value to return: ")
+                                                     (list (read)))
+                                      return-value)
+                                    (set-new-handler (new-handler)
+                                      :report "Provide a hander function for this class"
+                                      :interactive (lambda ()
+                                                     (format t "Enter a handler function to use:")
+                                                     (list (eval (read))))
+                                      (register-handler object new-handler)
+                                      (funcall new-handler object slot-name)))))))
          
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c

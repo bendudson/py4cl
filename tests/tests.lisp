@@ -529,17 +529,40 @@ class testclass:
   
 (deftest lisp-class-slots (pytests)
   (let ((object (make-instance 'test-class :thing 23 :value 42)))
-    ;; Register
-    (py4cl::register-class-handler object
-                                   (lambda (object slot-name)
-                                     (cond
-                                       ((string= slot-name "value")
-                                        (slot-value object 'value))
-                                       ((string= slot-name "thing")
-                                        (slot-value object 'thing))
-                                       (t nil))))
+    ;; If no handler is registered then a condition is signalled
+    (py4cl::clear-handler object) ; Make sure there is no handler
+    (assert-condition py4cl::missing-handler-error
+        (py4cl:chain object value))
+    
+    ;; Register a handler for this class
+    (py4cl:register-handler object
+                            (lambda (object slot-name)
+                              (cond
+                                ((string= slot-name "value")
+                                 (slot-value object 'value))
+                                ((string= slot-name "thing")
+                                 (slot-value object 'thing))
+                                (t nil))))
     
     (assert-equalp 23
         (py4cl:python-call "lambda x : x.thing" object))
     (assert-equalp 42
-        (py4cl:python-call "lambda x : x.value" object))))
+        (py4cl:chain object value)))
+
+  ;; The handler should work for other objects of the same class (class-of)
+  (let ((object2 (make-instance 'test-class :thing "hello" :value 314)))
+    (assert-equalp "hello"
+        (py4cl:chain object2 thing))))
+
+(deftest lisp-class-methods (pytests)
+  (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    ;; Register a handler for this class, with a method "func"
+    (py4cl:register-handler object
+                            (lambda (object slot-name)
+                              (cond
+                                ((string= slot-name "func")
+                                 (lambda (arg) (* 2 arg))))))
+    (assert-equalp 42
+        (py4cl:chain object (func 21)))))
+
+
