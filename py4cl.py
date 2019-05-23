@@ -58,19 +58,12 @@ class UnknownLispObject (object):
         try:
             sys.stdout = write_stream
             write_stream.write("s") # Slot access
-            send_value((self.handle, Symbol(attr)))
+            send_value((self.handle, attr))
         finally:
             sys.stdout = redirect_stream
 
         # Wait for the result
-        result = message_dispatch_loop()
-
-        if result:
-            # Not None, so the slot exists. Should be a list
-            return result[0]
-
-        # Slot does not exist. Assume it's a function
-        return -1
+        return message_dispatch_loop()
         
 # These store the environment used when eval'ing strings from Lisp
 eval_globals = {}
