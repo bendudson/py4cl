@@ -13,8 +13,12 @@
    #:python-exec
    #:python-call
    #:python-call-async
+   #:python-method
+   #:chain
    #:import-function
    #:import-module
    #:export-function
    #:python-setf
-   #:python-version-info))
+   #:python-version-info
+   #:remote-objects
+   #:remote-objects*))

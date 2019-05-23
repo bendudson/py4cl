@@ -56,6 +56,16 @@
   (assert-equalp "say \"hello\" world"
       (py4cl:python-eval "'say \"hello\"' + ' world'")))
 
+(deftest pythonize-format-string (tests)
+  (print (py4cl::pythonize (format nil "foo")))
+  (assert-equalp "\"foo\""
+                 (py4cl::pythonize (format nil "foo"))))
+
+(deftest eval-format-string (pytests)
+  (assert-equalp "foo"
+                 (py4cl:python-eval
+                  (py4cl::pythonize (format nil "foo")))))
+
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
   (unless (= 2 (first (py4cl:python-version-info)))
@@ -79,6 +89,14 @@
 
   (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
     (py4cl:python-eval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
+
+  ;; Test handling of real numbers in arrays
+  (assert-equalp #(1.0 2.0)
+      (py4cl:python-eval (vector 1.0 2.0)))
+
+  ;; Test empty arrays
+  (assert-equalp #()
+                 (py4cl:python-eval #()))
 
   ;; Unless the values are strings
   (let ((str "hello"))
@@ -358,6 +376,134 @@ a = Test()")
   
   (assert-false (py4cl:python-alive-p)))
 
+(deftest python-method (pytests)
+  (assert-equalp 3
+      (py4cl:python-method '(1 2 3) '__len__))
+  (assert-equalp "hello world"
+      (py4cl:python-method "hello {0}" 'format "world")))
+
+
+;; Shorter more convenient slicing
+(py4cl:import-function "slice")
+
+(deftest chain (pytests)
+  (assert-equalp "Hello world"
+      (py4cl:chain "hello {0}" (format "world") (capitalize)))
+  (assert-equalp "hello world"
+      (let ((format-str "hello {0}")
+            (argument "world"))
+        (py4cl:chain format-str (format argument))))
+  (assert-equalp "result: 3"
+      (py4cl:chain "result: {0}" (format (+ 1 2))))
+  (assert-equalp 3
+      (py4cl:chain (slice 3) stop))
+
+  ;; Anything not a list or a symbol is put between [] brackets (__getitem__)
+  (assert-equalp "o"
+      (py4cl:chain "hello" 4))
+
+  ;; [] operator for indexing and slicing (alias for __getitem__)
+  
+  (assert-equalp "l"
+      (py4cl:chain "hello" ([] 3)))
+  (assert-equalp 3
+      (py4cl:chain #2A((1 2) (3 4))  ([] 1 0)))
+  (assert-equalp #(4 5)
+      (py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2))))
+
+  (let ((dict (py4cl:python-eval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
+    (assert-equalp "world"
+        (py4cl:chain dict "hello"))
+    (assert-equalp "pong"
+        (py4cl:chain dict ([] "ping")))))
+  
+(deftest chain-keywords (pytests)
+  (py4cl:python-exec
+   "def test_fn(arg, key=1):
+       return arg * key")
+
+  (assert-equalp 3
+      (py4cl:chain (test_fn 3)))
+  (assert-equalp 6
+      (py4cl:chain (test_fn 3 :key 2)))
+
+  (py4cl:python-exec
+   "class testclass:
+      def run(self, dummy = 1, value = 42):
+        return value")
+
+  (assert-equalp 42
+      (py4cl:chain (testclass) (run)))
+
+  (assert-equalp 31
+      (py4cl:chain (testclass) (run :value 31))))
+
+
+(deftest chain-strings (pytests)
+  (py4cl:python-exec
+   "class TestClass:
+      def doThing(self, dummy = 1, value = 42):
+        return value")
+  
+  (assert-equalp 42
+      (py4cl:chain ("TestClass") ("doThing")))
+
+  (assert-equalp 31
+      (py4cl:chain ("TestClass") ("doThing" :value 31))))
+
+(deftest remote-objects (pytests)
+  ;; REMOTE-OBJECTS returns a handle
+  (assert-equalp 'py4cl::python-object
+                 (type-of (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+
+  ;; REMOTE-OBJECTS* returns a value
+  (assert-equalp 3
+                 (py4cl:remote-objects* (py4cl:python-eval "1+2")))
+    
+  (assert-equalp 3
+                 (py4cl:python-eval 
+                  (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+
+  ;; Nested remote-object environments
+
+  (assert-equalp 'py4cl::python-object
+                 (type-of (py4cl:remote-objects
+                           (py4cl:remote-objects (py4cl:python-eval "1+2"))
+                           (py4cl:python-eval "1+2")))))
+
+(deftest call-callable-object (pytests)
+  (assert-equalp 6
+      (py4cl:python-call (py4cl:python-eval "lambda x : 2*x") 3)))
+
+(deftest setf-eval (pytests)
+  (setf (py4cl:python-eval "test_value") 42) ; Set a variable
+  (assert-equalp 42
+                 (py4cl:python-eval "test_value")))  
+
+(deftest setf-chain (pytests)
+  (assert-equalp #(0 5 2 -1)
+                 (py4cl:remote-objects*
+                   (let ((list (py4cl:python-eval "[0, 1, 2, 3]")))
+                     (setf (py4cl:chain list ([] 1)) 5
+                           (py4cl:chain list ([] -1)) -1)
+                     list)))
+
+  (assert-equalp "world"
+      (py4cl:remote-objects*
+        (let ((dict (py4cl:python-eval "{}")))
+          (setf (py4cl:chain dict ([] "hello")) "world")
+          (py4cl:chain dict ([] "hello")))))
+  
+  ;; Define an empty class which can be modified
+  (py4cl:python-exec "
+class testclass:
+  pass")
+  
+  (let ((obj (py4cl:chain (testclass))))
+    (setf (py4cl:chain obj data_attrib) 21)
+    (assert-equalp 21
+        (py4cl:chain obj data_attrib))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Passing unknown lisp objects to python
 
@@ -383,6 +529,16 @@ a = Test()")
   
 (deftest lisp-class-slots (pytests)
   (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    ;; Register
+    (py4cl::register-class-handler object
+                                   (lambda (object slot-name)
+                                     (cond
+                                       ((string= slot-name "value")
+                                        (slot-value object 'value))
+                                       ((string= slot-name "thing")
+                                        (slot-value object 'thing))
+                                       (t nil))))
+    
     (assert-equalp 23
         (py4cl:python-call "lambda x : x.thing" object))
     (assert-equalp 42

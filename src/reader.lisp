@@ -22,7 +22,11 @@ Uses trivial-garbage (public domain)
      (lambda () ; This function is called when the python-object is garbage collected
        (ignore-errors
          (if (python-alive-p) ; If not alive, python-exec will start python
-             (python-exec "del _py4cl_objects[" handle "]"))))))
+             (python-exec "
+try:
+  del _py4cl_objects[" handle "]
+except:
+  pass"))))))
 
 (defun stream-read-string (stream)
   "Reads a string from a stream

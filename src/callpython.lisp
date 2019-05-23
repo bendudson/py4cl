@@ -1,64 +1,9 @@
 (in-package :py4cl)
 
-(defvar *python-command* "python"
-  "String, the Python executable to launch
-e.g. \"python\" or \"python3\"")
-
-(defvar *python* nil
-  "Most recently started python subprocess")
-
 (define-condition python-error (error)
   ((text :initarg :text :reader text))
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
-
-(defun python-start (&optional (command *python-command*))
-  "Start a new python subprocess
-This sets the global variable *python* to the process handle,
-in addition to returning it.
-COMMAND is a string with the python executable to launch e.g. \"python\"
-By default this is is set to *PYTHON-COMMAND*
-"
-  (setf *python*
-        (uiop:launch-program
-         (concatenate 'string
-                      command  ; Run python executable
-                      " "
-                      ;; Path *base-pathname* is defined in py4cl.asd
-                      ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream)))
-
-(defun python-alive-p (&optional (process *python*))
-  "Returns non-NIL if the python process is alive
-(e.g. SBCL -> T, CCL -> RUNNING).
-Optionally pass the process object returned by PYTHON-START"
-  (and process
-       (uiop:process-alive-p process)))
-
-(defun python-start-if-not-alive ()
-  "If no python process is running, tries to start it.
-If still not alive, raises a condition."
-  (unless (python-alive-p)
-    (python-start))
-  (unless (python-alive-p)
-    (error "Could not start python process")))
-
-(defun python-stop (&optional (process *python*))
-  ;; If python is not running then return
-  (unless (python-alive-p process)
-    (return-from python-stop))
-
-  ;; First ask python subprocess to quit
-  ;; Could give it a few seconds to close nicely
-  (let ((stream (uiop:process-info-input process)))
-    (write-char #\q stream))
-  ;; Close input, output streams
-  (uiop:close-streams process)
-  ;; Terminate
-  (uiop:terminate-process process)
-  ;; Mark as not alive
-  (setf *python* nil))
 
 (defun dispatch-reply (stream value)
   (write-char #\r stream)
@@ -77,20 +22,19 @@ If still not alive, raises a condition."
          ;; Error
          (#\e (error 'python-error  
                      :text (stream-read-string read-stream)))
+
          ;; Delete object. This is called when an UnknownLispObject is deleted
          (#\d (free-handle (stream-read-value read-stream)))
+
          ;; Slot access
          (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
-                (let ((object (lisp-object handle)))
-                  ;; NOTE: Slots defined in a different package will not be accessible
-                  ;;     Get the package the class was defined in?
-                  ;; find-symbol, class-of
-                  
+                (let* ((object (lisp-object handle))
+                       (handler (get-class-handler object)))
+                  ;; User must register a function to handle slot access
                   (dispatch-reply write-stream
-                                  (if (slot-exists-p object slot-name)
-                                      ;; Return a list, to distinguish the no slot case
-                                      ;; from a slot containing NIL
-                                      (list (slot-value object slot-name)))))))
+                                  (if handler
+                                      (funcall handler object slot-name))))))
+         
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
@@ -132,6 +76,18 @@ Examples:
    (py4cl:python-eval a "*" b)) => 20
 "
   (apply #'python-eval* #\e args))
+
+(defun (setf python-eval) (value &rest args)
+  "Set an expression to a value. Just adds \"=\" and the value
+to the end of the expression. Note that the result is evaluated
+with exec rather than eval.
+
+Examples:
+
+    (setf (python-eval \"a\") 2)  ; python \"a=2\"
+"
+  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
+  value)
 
 (defun python-exec (&rest args)
   "Execute (using exec) an expression in python.
@@ -178,92 +134,123 @@ Returns a lambda which when called returns the result."
             ;; If no handle then already have the value
             value)))))
 
-(defmacro import-function (fun-name &key docstring
-                                      (as (read-from-string fun-name)))
-  "Define a function which calls python
-Example
-  (py4cl:python-exec \"import math\")
-  (py4cl:import-function \"math.sqrt\")
-  (math.sqrt 42)
-  -> 6.4807405
+(defun python-method (obj method-name &rest args)
+  "Call a given method on an object OBJ. METHOD-NAME can be a
+symbol (converted to lower case) or a string. 
 
-Keywords:
+Examples:
+ 
+  (python-method \"hello {0}\" 'format \"world\") 
+  ; => \"hello world\"
 
-AS specifies the symbol to be used in Lisp. This can be a symbol
-or a string. If a string is given then it is read using READ-FROM-STRING.
-
-DOCSTRING is a string which becomes the function docstring
+  (python-method '(1 2 3) '__len__)
+  ; => 3
 "
-  ;; Note: a string input is used, since python is case sensitive
-  (unless (typep fun-name 'string)
-    (error "Argument to IMPORT-FUNCTION must be a string"))
-
-  ;; Input AS specifies the Lisp symbol, either as a string or a symbol
-  (let ((fun-symbol (typecase as
-                      (string (read-from-string as))
-                      (symbol as)
-                      (t (error "AS keyword must be string or symbol")))))
-    
-    `(defun ,fun-symbol (&rest args)
-       ,(or docstring "Python function")
-       (apply #'python-call ,fun-name args))))
-
-(defmacro import-module (module-name &key (as module-name as-supplied-p))
-  "Import a python module as a Lisp package. The module name should be
-a string.
-
-Example:
-  (py4cl:import-module \"math\")
-  (math:sqrt 4)   ; => 2.0
-
-or using 
-Keywords:
-AS specifies the name to be used for both the Lisp package and python module.
-It should be a string, and if not supplied then the module name is used.
-"
-  (unless (typep module-name 'string)
-    (error "Argument to IMPORT-MODULE must be a string"))
-  (unless (typep as 'string)
-    (error "Keyword argument AS to IMPORT-MODULE must be a string"))
-  
-  ;; Ensure that python is running
   (python-start-if-not-alive)
+  (py4cl:python-eval
+   (py4cl::pythonize obj)
+   (format nil ".~(~a~)" method-name)
+   (if args 
+       (py4cl::pythonize args)
+       "()")))
 
-  ;; Import the required module in python
-  (if as-supplied-p
-      (python-exec (concatenate 'string
-                                "import " module-name " as " as))
-      (python-exec (concatenate 'string
-                                "import " module-name)))
+(defun function-args (args)
+  "Internal function, intended to be called by the CHAIN macro.
+Converts function arguments to a list of strings and (pythonize )
+function calls. Handles keywords and insertion of commas. 
+Returns a list which can be passed to PYTHON-EVAL.
 
-  ;; Also need to import the "inspect" module
-  (python-exec "import inspect")
+Examples:
 
-  ;; fn-names  All callables whose names don't start with "_"
-  (let ((fn-names (python-eval (concatenate 'string
-                                            "[name for name, fn in inspect.getmembers("
-                                            as
-                                            ", callable) if name[0] != '_']")))
-        ;; Get the package name by passing through reader, rather than using STRING-UPCASE
-        ;; so that the result reflects changes to the readtable
-        ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
-        (*package* (make-package (string (read-from-string as))
-                                 :use '() )))
-    (append '(progn)
-            (loop for name across fn-names
-               for fn-symbol = (read-from-string name)
-               for fullname = (concatenate 'string as "." name) ; Include module prefix
-               append `((import-function ,fullname :as ,fn-symbol
-                            :docstring ,(python-eval (concatenate 'string
-                                                                  as "." name ".__doc__")))
-                        (export ',fn-symbol ,*package*))))))
+  (py4cl::function-args '(1 :test 2))
+  => ((PY4CL::PYTHONIZE 1) \",\" \"test\" \"=\" (PY4CL::PYTHONIZE 2))
+"
+  (if (not args)
+      '("")
+      (if (keywordp (first args))
+          (append
+           (list (string-downcase (first args))
+                 "="
+                 `(pythonize ,(second args)))
+           (if (cddr args)
+               (append '(",") (function-args (cddr args)))))
+           
+          (append
+           (list `(pythonize ,(first args)))
+           (if (rest args)
+               (append '(",") (function-args (rest args))))))))
 
-(defun export-function (function python-name)
-  "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
-  (let ((id (register-callback function)))
-    (python-exec (concatenate 'string
-                              "def " python-name "(*args, **kwargs):
-    return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
+(defmacro chain (target &rest chain)
+  "Chain method calls, member access, and indexing operations
+on objects. The operations in CHAIN are applied in order from
+first to last to the TARGET object.
+
+TARGET can be
+  cons -- a python function to call, returning an object to operate on
+  otherwise -- a value, to be converted to a python value
+
+CHAIN can consist of
+   cons   -- a method to call
+   symbol -- a member data variable
+   otherwise -- a value put between [] brackets to access an index
+
+Keywords inside python function calls are converted to python keywords.
+
+Functions can be specified using a symbol or a string. If a symbol is used
+then it is converted to python using STRING-DOWNCASE. 
+
+Examples:
+
+  (chain \"hello {0}\" (format \"world\") (capitalize)) 
+     => python: \"hello {0}\".format(\"world\").capitalize()
+     => \"Hello world\"
+
+  (chain (range 3) stop) 
+     => python: range(3).stop
+     => 3
+
+  (chain \"hello\" 4)
+     => python: \"hello\"[4]
+     => \"o\"
+"
+  (python-start-if-not-alive)
+  `(py4cl:python-eval
+    ;; TARGET 
+    ,@(if (consp target)
+          ;; A list -> python function call
+          `(,(let ((func (first target))) ; The function name
+               (if (stringp func)
+                   func  ; Leave string unmodified
+                   (string-downcase func))) ; Otherwise convert to lower-case string
+             "("
+             ,@(function-args (rest target))
+             ")")
+          ;; A value
+          (list (list 'py4cl::pythonize target)))
+    ;; CHAIN
+    ,@(loop for link in chain
+         appending
+           (cond
+             ((consp link)
+              ;; A list. Usually a method to call, but [] indicates __getitem__
+              (if (string= (first link) "[]")
+                  ;; Calling the __getitem__ method
+                  (list "[" (list 'py4cl::pythonize  ; So that strings are escaped
+                                  (if (cddr link)
+                                      (append '(list) (rest link)) ; More than one -> wrap in list/tuple
+                                      (cadr link))) ; Only one -> no tuple
+                        "]")
+                  ;; Calling a method
+                  `("."
+                    ,(let ((func (first link)))
+                       (if (stringp func)
+                         func  ; Leave string unmodified
+                         (string-downcase func))) ; Otherwise convert to lower-case string
+                    "("
+                    ,@(function-args (rest link))
+                    ")")))
+             ((symbolp link) (list (format nil ".~(~a~)" link)))
+             (t (list "[" (list 'py4cl::pythonize link) "]"))))))
 
 (defun python-setf (&rest args)
   "Set python variables in ARGS (\"var1\" value1 \"var2\" value2 ...) "
@@ -286,10 +273,29 @@ It should be a string, and if not supplied then the module name is used.
     ;; Should get T returned, might be error
     (dispatch-messages *python*)))
 
-(defun python-version-info ()
-  "Return a list, using the result of python's sys.version_info."
-  (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input *python*)))
-    (write-char #\v stream)
-    (force-output stream))
-  (dispatch-messages *python*))
+(defmacro remote-objects (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets."
+  `(progn
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       ;; Turn on remote objects
+       (write-char #\O stream)
+       (force-output stream)
+       (unwind-protect
+            (progn ,@body)
+         ;; Turn off remote objects
+         (write-char #\o stream)
+         (force-output stream)))))
+
+(defmacro remote-objects* (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets.
+
+This version evaluates the result, returning it as a lisp value if possible.
+"
+  `(python-eval (remote-objects ,@body)))
+
+

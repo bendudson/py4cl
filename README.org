@@ -79,9 +79,18 @@ which is then plotted using the [[https://matplotlib.org/][matplotlib]] plotting
 (plt:show)
 #+END_SRC
 
-For more direct access to the python subprocess, =python-eval=
+More detailed examples of using python packages using =py4cl=:
+ - [[./docs/numpy.org][Numpy arrays]]
+ - [[./docs/matplotlib.org][Matplotlib plotting]]
+ - [[./docs/scipy.org][Scipy scientific library]]
+
+* Reference
+** Direct evaluation of python code: =python-eval=, =python-exec=
+
+For direct access to the python subprocess, =python-eval=
 evaluates an expression, converting the result to a suitable lisp
-type.
+type. Note that there are nicer, more lispy wrappers around this function,
+described below, but they are mostly built on top of =python-eval=.
 
 #+BEGIN_SRC lisp
 (asdf:load-system "py4cl")
@@ -122,6 +131,36 @@ reader; the lisp function =pythonize= outputs strings which can be
 Note that python does not have all the numerical types which lisp has,
 for example rational numbers or complex integers.
 
+Because =python-eval= and =python-exec= evaluate strings as python
+expressions, strings passed to them are not escaped or converted as
+other types are. To pass a string to python as an argument, call =py4cl::pythonize=
+
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:python-eval "len(" (py4cl::pythonize my-str) ")" ))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
+Note that this escaping is done automatically by higher-level interfaces like
+=python-call= and =chain=:
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:python-call "len" my-str))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
+#+BEGIN_SRC lisp
+(let ((my-str "testing"))
+  (py4cl:chain (len my-str)))
+#+END_SRC
+
+#+RESULTS:
+: 7
+
 If python objects cannot be converted into a lisp value, then they are
 stored and a handle is returned to lisp. This handle can be used to
 manipulate the object, and when it is garbage collected the python
@@ -134,11 +173,18 @@ object is also deleted (using the [[https://common-lisp.net/project/trivial-garb
   (plt:show)) 
 #+END_SRC
 
+The interface to python objects is nicer using =chain= (see below):
+#+BEGIN_SRC lisp
+(destructuring-bind (fig ax) (plt:subplots)
+  (py4cl:chain ax (plot #(0 1 0 1)))
+  (plt:show)) 
+#+END_SRC
+
 The python process can be explicitly started and stopped using
 =python-start= and =python-stop=, but =py4cl= functions start python
 automatically if needed by calling =python-start-if-not-alive=.
 
-** Calling python functions
+** Calling python functions: =python-call=
 
 =python-call= can be used to pass arguments to any python callable, 
 such as a function in a module:
@@ -167,7 +213,166 @@ Keywords are translated, with the symbol made lowercase:
 #+RESULTS:
 : -1
 
-** Asynchronous python functions
+** Calling python methods: =python-method=
+
+Python methods on objects can be called by using the =python-method= function. The first argument
+is the object (including strings, arrays, tuples); the second argument is either a string or a symbol
+specifying the method, followed by any arguments:
+#+BEGIN_SRC lisp
+(py4cl:python-method "hello {0}" 'format "world") ; => "hello world"
+#+END_SRC
+
+#+RESULTS:
+: hello world
+
+#+BEGIN_SRC lisp
+(py4cl:python-method '(1 2 3) '__len__) ; => 3
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+** Chaining python methods: =chain=
+
+In python it is quite common to apply a chain of method calls, data
+member access, and indexing operations to an object. To make this work
+smoothly in Lisp, there is the =chain= macro (Thanks to @kat-co and
+[[https://common-lisp.net/project/parenscript/reference.html][parenscript]] for the inspiration). This consists of a target object,
+followed by a chain of operations to apply.  For example
+#+BEGIN_SRC lisp
+(py4cl:chain "hello {0}" (format "world") (capitalize)) ; => "Hello world"
+#+END_SRC
+
+#+RESULTS:
+: Hello world
+
+which is converted to python 
+#+BEGIN_SRC python
+return "hello {0}".format("world").capitalize()
+#+END_SRC
+
+#+RESULTS:
+: Hello world
+
+The only things which are treated specially by this macro are lists
+and symbols at the top level. The first element of lists are treated as
+python method names, top-level symbols are treated as data
+members. Everything else is evaluated as lisp before being converted
+to a python value.
+
+If the first argument is a list, then it is assumed to be a python
+function to be called; otherwise it is evaluated before converting to
+a python value. For example
+#+BEGIN_SRC lisp
+(py4cl:chain (slice 3) stop)
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+is converted to the python:
+#+BEGIN_SRC python
+return slice(3).stop
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+Symbols as first argument, or arguments to python methods, are
+evaluated, so the following works:
+#+BEGIN_SRC lisp
+(let ((format-str "hello {0}")
+      (argument "world"))
+ (py4cl:chain format-str (format argument))) ; => "hello world"
+#+END_SRC
+
+#+RESULTS:
+: hello world
+
+Arguments to methods are lisp, since only the top level forms in =chain= are treated specially:
+#+BEGIN_SRC lisp
+(py4cl:chain "result: {0}" (format (+ 1 2))) ; => "result: 3"
+#+END_SRC
+
+#+RESULTS:
+: result: 3
+
+Indexing with =[]= brackets is commonly used in python, which calls the =__getitem__= method.
+This method can be called like any other method
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" (__getitem__ 4)) ; => "o"
+#+END_SRC
+
+#+RESULTS:
+: o
+
+but since this is a common method an alias =[]= is supported:
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" ([] 4)) ; => "o"
+#+END_SRC
+
+#+RESULTS:
+: o
+
+which is converted to the python
+#+BEGIN_SRC python
+return "hello"[4]
+#+END_SRC
+
+#+RESULTS:
+: o
+
+For simple cases where the index is a value like a number or string
+(not a symbol or a list), the brackets can be omitted:
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" 4) ; => "o"
+#+END_SRC
+
+#+RESULTS:
+: o
+
+Slicing can be done by calling the python =slice= function:
+#+BEGIN_SRC lisp
+(py4cl:chain "hello" ([] (py4cl:python-call "slice" 2 4)))  ; => "ll"
+#+END_SRC
+
+#+RESULTS:
+: ll
+
+which could be imported as a lisp function (see below):
+#+BEGIN_SRC lisp
+(py4cl:import-function "slice")
+(py4cl:chain "hello" ([] (slice 2 4))) ; => "ll"
+#+END_SRC
+
+#+RESULTS:
+: ll
+
+This of course also works with multidimensional arrays:
+#+BEGIN_SRC lisp
+(py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2)))  ;=> #(4 5)
+#+END_SRC
+
+#+RESULTS:
+| 4 | 5 |
+
+Sometimes the python functions or methods may contain upper case
+characters; class names often start with a capital letter. All symbols
+are converted to lower case, but the case can be controlled by passing
+a string rather than a symbol as the first element:
+#+BEGIN_SRC lisp
+;; Define a class
+(py4cl:python-exec
+   "class TestClass:
+      def doThing(self, value = 42):
+        return value")
+
+;; Create an object and call the method
+(py4cl:chain ("TestClass") ("doThing" :value 31))  ; => 31
+#+END_SRC
+Note that the keyword is converted, converting to lower case.
+
+** Asynchronous python functions: =python-call-async=
 
 One of the advantages of using streams to communicate with a separate
 python process, is that the python and lisp processes can run at the
@@ -190,7 +395,7 @@ function may not be able to finish until the thunk is called. This
 should not result in deadlocks, because all =py4cl= functions can
 service callbacks while waiting for a result.
 
-** Importing functions
+** Importing functions: =import-function=
 
 Python functions can be made available in Lisp by using =import-function=. By
 default this makes a function which can take any number of arguments, and then
@@ -218,7 +423,7 @@ used with either a string or symbol:
 
 This is implemented as a macro which defines a function which in turn calls =python-call=.
 
-** Importing modules
+** Importing modules: =import-module=
 
 Python modules can be imported as lisp packages using =import-module=.
 For example, to import the [[https://matplotlib.org/][matplotlib]] plotting library, and make its functions
@@ -253,7 +458,16 @@ Functions in the =PLT= package can be used to make simple plots:
 #+RESULTS:
 : NIL
 
-* Exporting a function to python
+Notes:
+ -  =import-module= should be used as a top-level form, to ensure that
+   the package is defined before it is used.
+
+- If using =import-module= within [[https://orgmode.org/worg/org-contrib/babel/][org-mode babel]] then the import
+  should be done in a separate code block to the first use of the
+  imported package, or a condition will be raised like "Package NP
+  does not exist."
+
+** Exporting a function to python: =export-function=
 
 Lisp functions can be passed as arguments to =python-call= 
 or imported functions:
@@ -282,3 +496,98 @@ Lisp functions can be made available to python code using =export-function=:
 #+RESULTS:
 : 0.4213504
 
+** Manipulating objects remotely: =remote-objects=
+
+If a sequence of python functions and methods are being used to manipulate data,
+then data may be passed between python and lisp. This is fine for small amounts
+of data, but inefficient for large datasets.
+
+The =remote-objects= and =remote-objects*= macros provide =unwind-protect= environments
+in which all python functions return handles rather than values to lisp. This enables
+python functions to be combined without transferring much data.
+
+The difference between these macros is =remote-objects= returns a handle, but
+=remote-objects*= evaluates the result, and so will return a value if possible.
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects (py4cl:python-eval "1+2")) ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
+#+END_SRC
+
+#+RESULTS:
+: #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 4)
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects* (py4cl:python-eval "1+2")) ; => 3
+#+END_SRC
+
+#+RESULTS:
+: 3
+
+The advantage comes when dealing with large arrays or other datasets:
+#+BEGIN_SRC lisp
+(time (np:sum (np:arange 1000000)))
+; => 3.672 seconds of real time
+;    390,958,896 bytes consed
+#+END_SRC
+
+#+BEGIN_SRC lisp
+(time (py4cl:remote-objects* (np:sum (np:arange 1000000))))
+; => 0.025 seconds of real time
+;    32,544 bytes consed
+#+END_SRC
+** =setf=-able places
+
+The =python-eval= function is =setf=-able, so that python objects can
+be assigned to by using =setf=. Since =chain= uses =python-eval=, it is also
+=setf=-able. This can be used to set elements in an array, entries in a dict/hash-table, 
+or object data members, for example:
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy" :as "np")
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp
+(py4cl:remote-objects*
+  (let ((array (np:zeros '(2 2))))
+    (setf (py4cl:chain array ([] 0 1)) 1.0
+          (py4cl:chain array ([] 1 0)) -1.0)
+    array)) 
+; => #2A((0.0 1.0)
+;        (-1.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 1.0) (-1.0 0.0))
+
+Note that this modifies the value in python, so the above example only
+works because =array= is a handle to a python object, rather than an
+array which is stored in lisp. The following therefore does not work:
+#+BEGIN_SRC lisp
+(let ((array (np:zeros '(2 2))))
+  (setf (py4cl:chain array ([] 0 1)) 1.0
+        (py4cl:chain array ([] 1 0)) -1.0)
+  array)
+; => #2A((0.0 0.0)
+;        (0.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 0.0) (0.0 0.0))
+
+The =np:zeros= function returned an array to lisp; the array was then
+sent to python and modified in python. The modified array is not
+returned, since this would mean transferring the whole array. If the
+value is in lisp then just use the lisp functions:
+#+BEGIN_SRC lisp
+(let ((array (np:zeros '(2 2))))
+  (setf (aref array 0 1) 1.0
+        (aref array 1 0) -1.0)
+  array)
+; => #2A((0.0 1.0)
+;        (-1.0 0.0))
+#+END_SRC
+
+#+RESULTS:
+: #2A((0.0 1.0) (-1.0 0.0))

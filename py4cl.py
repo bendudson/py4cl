@@ -75,6 +75,11 @@ class UnknownLispObject (object):
 # These store the environment used when eval'ing strings from Lisp
 eval_globals = {}
 eval_locals = {}
+
+# Settings
+
+return_values = 0 # Try to return values to lisp. If > 0, always return a handle
+                  # A counter is used, rather than Boolean, to allow nested environments.
     
 ##################################################################
 # This code adapted from cl4py
@@ -82,15 +87,16 @@ eval_locals = {}
 # https://github.com/marcoheisig/cl4py
 #
 # Copyright (c) 2018  Marco Heisig <marco.heisig@fau.de>
+#               2019  Ben Dudson <benjamin.dudson@york.ac.uk>
 
 lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
     type(None) : lambda x: "NIL",
     int        : str,
     float      : str,
-    complex    : lambda x: "#C(" + lispify_aux(x.real) + " " + lispify_aux(x.imag) + ")",
-    list       : lambda x: "#(" + " ".join(lispify_aux(elt) for elt in x) + ")",
-    tuple      : lambda x: "(" + " ".join(lispify_aux(elt) for elt in x) + ")",
+    complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
+    list       : lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
+    tuple      : lambda x: "(" + " ".join(lispify(elt) for elt in x) + ")",
     # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
@@ -130,11 +136,23 @@ try:
 except:
     pass
 
+def lispify_handle(obj):
+    """
+    Store an object in a dictionary, and return a handle
+    """
+    handle = next(python_handle)
+    python_objects[handle] = obj
+    return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
 
 def lispify(obj):
-    return lispify_aux(obj)
+    """
+    Turn a python object into a string which can be parsed by Lisp's reader.
+    
+    If return_values is false then always creates a handle
+    """
+    if return_values > 0:
+        return lispify_handle(obj)
 
-def lispify_aux(obj):
     try:
         return lispifiers[type(obj)](obj)
     except KeyError:
@@ -144,10 +162,8 @@ def lispify_aux(obj):
             return str(obj)
         
         # Another unknown type. Return a handle to a python object
-        handle = next(python_handle)
-        python_objects[handle] = obj
-        return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
-    
+        return lispify_handle(obj)
+
 
 ##################################################################
 
@@ -180,11 +196,16 @@ def return_error(err):
     """
     Send an error message
     """
+    global return_values
+    
+    old_return_values = return_values # Save to restore after
     try:
+        return_values = 0 # Need to return the error, not a handle
         sys.stdout = write_stream
         write_stream.write("e")
         send_value(str(err))
     finally:
+        return_values = old_return_values
         sys.stdout = redirect_stream
 
 def return_value(value):
@@ -216,6 +237,8 @@ def message_dispatch_loop():
     R  Retrieve value from asynchronous call
     s  Set variable(s) 
     """
+    global return_values  # Controls whether values or handles are returned
+    
     while True:
         try:
             # Read command type
@@ -224,17 +247,7 @@ def message_dispatch_loop():
             if cmd_type == "e":  # Evaluate an expression
                 result = eval(recv_string(), eval_globals, eval_locals)
                 return_value(result)
-        
-            elif cmd_type == "x": # Execute a statement
-                exec(recv_string(), eval_globals, eval_locals)
-                return_value(None)
             
-            elif cmd_type == "q": # Quit
-                sys.exit(0)
-                
-            elif cmd_type == "r": # Return value from Lisp function
-                return recv_value()
-
             elif cmd_type == "f" or cmd_type == "a": # Function call
                 # Get a tuple (function, allargs)
                 fn_name, allargs = recv_value()
@@ -252,7 +265,10 @@ def message_dispatch_loop():
                         args.append(arg)
                 
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
-                function = eval(fn_name, eval_globals, eval_locals)
+                if callable(fn_name):
+                    function = fn_name # Already callable
+                else:
+                    function = eval(fn_name, eval_globals, eval_locals)
                 if cmd_type == "f":
                     # Run function then return value
                     return_value( function(*args, **kwargs) )
@@ -273,11 +289,24 @@ def message_dispatch_loop():
                         # Catching error here so it can
                         # be stored as the return value
                         async_results[handle] = e
+    
+            elif cmd_type == "O":  # Return only handles
+                return_values += 1
+
+            elif cmd_type == "o":  # Return values when possible (default)
+                return_values -= 1
+                
+            elif cmd_type == "q": # Quit
+                sys.exit(0)
+                
             elif cmd_type == "R":
                 # Request value using handle
                 handle = recv_value()
                 return_value( async_results.pop(handle) )
                 
+            elif cmd_type == "r": # Return value from Lisp function
+                return recv_value()
+            
             elif cmd_type == "s":
                 # Set variables. Should have the form
                 # ( ("var1" value1) ("var2" value2) ...)
@@ -290,7 +319,11 @@ def message_dispatch_loop():
             elif cmd_type == "v":
                 # Version info
                 return_value(tuple(sys.version_info))
-
+                
+            elif cmd_type == "x": # Execute a statement
+                exec(recv_string(), eval_globals, eval_locals)
+                return_value(None)
+                
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
 
