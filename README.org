@@ -591,6 +591,7 @@ value is in lisp then just use the lisp functions:
 
 #+RESULTS:
 : #2A((0.0 1.0) (-1.0 0.0))
+
 ** Passing lisp objects to python: =register-handler=
 
 Lisp structs and class objects can be passed to python, put into data structures and
