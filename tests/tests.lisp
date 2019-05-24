@@ -502,7 +502,67 @@ class testclass:
   (let ((obj (py4cl:chain (testclass))))
     (setf (py4cl:chain obj data_attrib) 21)
     (assert-equalp 21
-                   (py4cl:chain obj data_attrib))))
+        (py4cl:chain obj data_attrib))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Passing unknown lisp objects to python
+
+(defstruct test-struct
+  x y)
+
+(deftest lisp-structs (pytests)
+  ;; Create a struct and pass to Python
+  (let ((result (py4cl:python-call
+                 "lambda x: x"
+                 (make-test-struct :x 1 :y 2))))
+
+    ;; Check we got back the structure
+    (assert-true (typep result 'test-struct))
+    (assert-equalp 1
+                   (test-struct-x result))
+    (assert-equalp 2
+                   (test-struct-y result))))
+
+(defclass test-class ()
+  ((value :initarg :value)
+   (thing :initarg :thing)))
+  
+(deftest lisp-class-slots (pytests)
+  (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    ;; If no handler is registered then a condition is signalled
+    (py4cl::clear-handler object) ; Make sure there is no handler
+    (assert-condition py4cl::missing-handler-error
+        (py4cl:chain object value))
+    
+    ;; Register a handler for this class
+    (py4cl:register-handler object
+                            (lambda (object slot-name)
+                              (cond
+                                ((string= slot-name "value")
+                                 (slot-value object 'value))
+                                ((string= slot-name "thing")
+                                 (slot-value object 'thing))
+                                (t nil))))
+    
+    (assert-equalp 23
+        (py4cl:python-call "lambda x : x.thing" object))
+    (assert-equalp 42
+        (py4cl:chain object value)))
+
+  ;; The handler should work for other objects of the same class (class-of)
+  (let ((object2 (make-instance 'test-class :thing "hello" :value 314)))
+    (assert-equalp "hello"
+        (py4cl:chain object2 thing))))
+
+(deftest lisp-class-methods (pytests)
+  (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    ;; Register a handler for this class, with a method "func"
+    (py4cl:register-handler object
+                            (lambda (object slot-name)
+                              (cond
+                                ((string= slot-name "func")
+                                 (lambda (arg) (* 2 arg))))))
+    (assert-equalp 42
+        (py4cl:chain object (func 21)))))
 
 
-   

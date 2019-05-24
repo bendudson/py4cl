@@ -5,6 +5,11 @@
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
 
+(defun dispatch-reply (stream value)
+  (write-char #\r stream)
+  (stream-write-value value stream)
+  (force-output stream))
+
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
   (let ((read-stream (uiop:process-info-output process))
@@ -17,14 +22,40 @@
          ;; Error
          (#\e (error 'python-error  
                      :text (stream-read-string read-stream)))
+
+         ;; Delete object. This is called when an UnknownLispObject is deleted
+         (#\d (free-handle (stream-read-value read-stream)))
+
+         ;; Slot access
+         (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
+                (let ((object (lisp-object handle)))
+                  ;; User must register a function to handle slot access
+                  (dispatch-reply write-stream
+                                  (restart-case
+                                      (call-handler object slot-name)
+                                    ;; Provide some restarts for missing handler or missing slot
+                                    (return-nil () nil)
+                                    (return-zero () 0)
+                                    (enter-value (return-value)
+                                      :report "Provide a value to return"
+                                      :interactive (lambda ()
+                                                     (format t "Enter a value to return: ")
+                                                     (list (read)))
+                                      return-value)
+                                    (set-new-handler (new-handler)
+                                      :report "Provide a hander function for this class"
+                                      :interactive (lambda ()
+                                                     (format t "Enter a handler function to use:")
+                                                     (list (eval (read))))
+                                      (register-handler object new-handler)
+                                      (funcall new-handler object slot-name)))))))
+         
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
             (let ((return-value (apply (get-callback (first call-value)) (second call-value))))
               ;; Send a reply
-              (write-char #\r write-stream)
-              (stream-write-value return-value write-stream)
-              (force-output write-stream))))
+              (dispatch-reply write-stream return-value))))
          (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval* (cmd-char &rest args)

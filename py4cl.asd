@@ -13,6 +13,7 @@
                (:file "writer")
                (:file "callbacks")
                (:file "python-process")
+               (:file "lisp-classes")
                (:file "callpython")
                (:file "import-export"))
   :in-order-to ((test-op (test-op "py4cl/tests"))))

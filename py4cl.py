@@ -27,6 +27,44 @@ class Symbol(object):
     def __repr__(self):
         return "Symbol("+self._name+")"
 
+class UnknownLispObject (object):
+    """
+    Represents an object in Lisp, which could not be converted to Python
+    """
+    def __init__(self, lisptype, handle):
+        """
+        lisptype  A string describing the type. Mainly for debugging
+        handle    A number, used to refer to the object in Lisp
+        """
+        self.lisptype = lisptype
+        self.handle = handle
+
+    def __del__(self):
+        """
+        Delete this object, sending a message to Lisp
+        """
+        try:
+            sys.stdout = write_stream
+            write_stream.write("d")
+            send_value(self.handle)
+        finally:
+            sys.stdout = redirect_stream
+
+    def __str__(self):
+        return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
+
+    def __getattr__(self, attr):
+        # Check if there is a slot with this name
+        try:
+            sys.stdout = write_stream
+            write_stream.write("s") # Slot access
+            send_value((self.handle, attr))
+        finally:
+            sys.stdout = redirect_stream
+
+        # Wait for the result
+        return message_dispatch_loop()
+        
 # These store the environment used when eval'ing strings from Lisp
 eval_globals = {}
 eval_locals = {}
@@ -56,7 +94,7 @@ lispifiers = {
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
     Symbol     : str,
-    
+    UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
 
 # This is used to test if a value is a numeric type
@@ -319,6 +357,7 @@ python_handle = itertools.count(0) # Running counter
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_callback"] = callback_func
 eval_globals["_py4cl_Symbol"] = Symbol
+eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
 
 async_results = {}  # Store for function results. Might be Exception
