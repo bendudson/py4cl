@@ -28,15 +28,11 @@
 
          ;; Slot access
          (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
-                (let* ((object (lisp-object handle))
-                       (handler (get-handler object)))
+                (let ((object (lisp-object handle)))
                   ;; User must register a function to handle slot access
                   (dispatch-reply write-stream
-                                  (restart-case 
-                                      (if handler
-                                          (funcall handler object slot-name)
-                                          (error 'missing-handler-error
-                                                 :object object :slot-name slot-name))
+                                  (restart-case
+                                      (call-handler object slot-name)
                                     ;; Provide some restarts for missing handler or missing slot
                                     (return-nil () nil)
                                     (return-zero () 0)
