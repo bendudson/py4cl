@@ -52,8 +52,8 @@ If a condition is signalled, then several restarts are provided.
   (unless (functionp handler-function)
     (error "Handler passed to register-handler must be a function"))
   
-  (let ((class-obj (if (typep object 'standard-class)
-                       object
+  (let ((class-obj (if (typep obj 'standard-class)
+                       obj
                        (class-of obj))))
     (setf (gethash class-obj *registered-classes*) handler-function)))
 
