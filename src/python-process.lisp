@@ -9,6 +9,11 @@ e.g. \"python\" or \"python3\"")
 (defvar *python* nil
   "Most recently started python subprocess")
 
+(defvar *current-python-process-id* 0
+  "A number which changes when python is started. This
+is used to prevent garbage collection from deleting objects in the wrong
+python session")
+
 (defun python-start (&optional (command *python-command*))
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
@@ -24,7 +29,8 @@ By default this is is set to *PYTHON-COMMAND*
                       ;; Path *base-pathname* is defined in py4cl.asd
                       ;; Calculate full path to python script
                       (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream)))
+         :input :stream :output :stream))
+  (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process *python*))
   "Returns non-NIL if the python process is alive
@@ -41,6 +47,9 @@ If still not alive, raises a condition."
   (unless (python-alive-p)
     (error "Could not start python process")))
 
+;; Function defined in writer.lisp, which clears an object store
+(declaim (ftype (function () t) clear-lisp-objects))
+
 (defun python-stop (&optional (process *python*))
   ;; If python is not running then return
   (unless (python-alive-p process)
@@ -55,7 +64,10 @@ If still not alive, raises a condition."
   ;; Terminate
   (uiop:terminate-process process)
   ;; Mark as not alive
-  (setf *python* nil))
+  (setf *python* nil)
+
+  ;; Clear lisp objects
+  (clear-lisp-objects))
 
 (defun python-version-info ()
   "Return a list, using the result of python's sys.version_info."

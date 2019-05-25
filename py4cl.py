@@ -27,6 +27,55 @@ class Symbol(object):
     def __repr__(self):
         return "Symbol("+self._name+")"
 
+class LispCallbackObject (object):
+    """
+    Represents a lisp function which can be called. 
+    
+    An object is used rather than a lambda, so that the lifetime
+    can be monitoried, and the function removed from a hash map
+    """
+    def __init__(self, handle):
+        """
+        handle    A number, used to refer to the object in Lisp
+        """
+        self.handle = handle
+
+    def __del__(self):
+        """
+        Delete this object, sending a message to Lisp
+        """
+        try:
+            sys.stdout = write_stream
+            write_stream.write("d")
+            send_value(self.handle)
+        finally:
+            sys.stdout = redirect_stream
+
+    def __call__(self, *args, **kwargs):
+        """
+        Call back to Lisp
+        
+        args   Arguments to be passed to the function
+        """
+
+        # Convert kwargs into a sequence of ":keyword value" pairs
+        # appended to the positional arguments
+        allargs = args
+        for key, value in kwargs.items():
+            allargs += (Symbol(":"+str(key)), value)
+    
+        try:
+            sys.stdout = write_stream
+            write_stream.write("c")
+            send_value((self.handle, allargs))
+        finally:
+            sys.stdout = redirect_stream
+
+        # Wait for a value to be returned.
+        # Note that the lisp function may call python before returning
+        return message_dispatch_loop()
+
+    
 class UnknownLispObject (object):
     """
     Represents an object in Lisp, which could not be converted to Python
@@ -323,39 +372,13 @@ def message_dispatch_loop():
         except Exception as e:
             return_error(e)
 
-        
-def callback_func(ident, *args, **kwargs):
-    """
-    Call back to Lisp
-
-    ident  Uniquely identifies the function to call
-    args   Arguments to be passed to the function
-    """
-
-    # Convert kwargs into a sequence of ":keyword value" pairs
-    # appended to the positional arguments
-    allargs = args
-    for key, value in kwargs.items():
-        allargs += (Symbol(":"+str(key)), value)
-    
-    try:
-        sys.stdout = write_stream
-        write_stream.write("c")
-        send_value((ident, allargs))
-    finally:
-        sys.stdout = redirect_stream
-
-    # Wait for a value to be returned.
-    # Note that the lisp function may call python before returning
-    return message_dispatch_loop()
-
 
 # Store for python objects which can't be translated to Lisp objects
 python_objects = {}
 python_handle = itertools.count(0) # Running counter
 
 # Make callback function accessible to evaluation
-eval_globals["_py4cl_callback"] = callback_func
+eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects

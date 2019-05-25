@@ -10,6 +10,11 @@
 
 (defvar *lisp-objects* (make-hash-table :test #'eql))
 
+(defun clear-lisp-objects ()
+  "Clear the *lisp-objects* object store, allowing them to be GC'd"
+  (setf *lisp-objects* (make-hash-table :test #'eql)
+        *handle-counter* 0))
+
 (defun free-handle (handle)
   "Remove an object with HANDLE from the hash table"
   (remhash handle *lisp-objects*))
@@ -119,13 +124,13 @@ Produces a string {key1:value1, key2:value2,}"
                "}"))
 
 (defmethod pythonize ((obj function))
-  "Handle a function by converting to a callback object"
-
-  (let ((id (register-callback obj)))
-    (concatenate 'string
-                 "lambda *args, **kwargs: _py4cl_callback("
-                 (write-to-string id)
-                 ", *args, **kwargs)")))
+  "Handle a function by converting to a callback object
+The lisp function is stored in the same object store as other objects."
+  (concatenate 'string
+                 "_py4cl_LispCallbackObject("
+                 (write-to-string
+                  (object-handle obj))
+                 ")"))
 
 (defmethod pythonize ((obj python-object))
   "A handle for a python object, stored in a dict in Python"
