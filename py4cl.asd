@@ -11,7 +11,6 @@
   :components ((:file "package")
                (:file "reader")
                (:file "writer")
-               (:file "callbacks")
                (:file "python-process")
                (:file "lisp-classes")
                (:file "callpython")

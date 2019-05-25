@@ -53,7 +53,7 @@
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c
           (let ((call-value (stream-read-value read-stream)))
-            (let ((return-value (apply (get-callback (first call-value)) (second call-value))))
+            (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
               ;; Send a reply
               (dispatch-reply write-stream return-value))))
          (otherwise (error "Unhandled message type"))))))

@@ -108,7 +108,10 @@ RELOAD specifies that the package should be deleted and reloaded.
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
-  (let ((id (register-callback function)))
-    (python-exec (concatenate 'string
-                              "def " python-name "(*args, **kwargs):
-    return _py4cl_callback(" (write-to-string id) ", *args, **kwargs)"))))
+  (python-exec (concatenate 'string
+                            python-name
+                            "=_py4cl_LispCallbackObject("
+                            (write-to-string
+                             (object-handle function))
+                            ")")))
+
