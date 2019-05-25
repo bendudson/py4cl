@@ -19,14 +19,17 @@ Uses trivial-garbage (public domain)
     (tg:finalize
      (make-python-object :type type
                          :handle handle)
-     (lambda () ; This function is called when the python-object is garbage collected
-       (ignore-errors
-         (if (python-alive-p) ; If not alive, python-exec will start python
-             (python-exec "
+     (let ((python-id *current-python-process-id*))
+       (lambda () ; This function is called when the python-object is garbage collected
+         (ignore-errors
+           (if (and
+                (python-alive-p) ; If not alive, python-exec will start python
+                (= *current-python-process-id* python-id)) ; Python might have restarted
+               (python-exec "
 try:
   del _py4cl_objects[" handle "]
 except:
-  pass"))))))
+  pass")))))))
 
 (defun stream-read-string (stream)
   "Reads a string from a stream
