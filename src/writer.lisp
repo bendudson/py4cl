@@ -10,6 +10,11 @@
 
 (defvar *lisp-objects* (make-hash-table :test #'eql))
 
+(defun clear-lisp-objects ()
+  "Clear the *lisp-objects* object store, allowing them to be GC'd"
+  (setf *lisp-objects* (make-hash-table :test #'eql)
+        *handle-counter* 0))
+
 (defun free-handle (handle)
   "Remove an object with HANDLE from the hash table"
   (remhash handle *lisp-objects*))

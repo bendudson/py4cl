@@ -41,6 +41,9 @@ If still not alive, raises a condition."
   (unless (python-alive-p)
     (error "Could not start python process")))
 
+;; Function defined in writer.lisp, which clears an object store
+(declaim (ftype (function () t) clear-lisp-objects))
+
 (defun python-stop (&optional (process *python*))
   ;; If python is not running then return
   (unless (python-alive-p process)
@@ -55,7 +58,10 @@ If still not alive, raises a condition."
   ;; Terminate
   (uiop:terminate-process process)
   ;; Mark as not alive
-  (setf *python* nil))
+  (setf *python* nil)
+
+  ;; Clear lisp objects
+  (clear-lisp-objects))
 
 (defun python-version-info ()
   "Return a list, using the result of python's sys.version_info."
