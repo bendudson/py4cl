@@ -32,7 +32,7 @@
                   ;; User must register a function to handle slot access
                   (dispatch-reply write-stream
                                   (restart-case
-                                      (call-handler object slot-name)
+                                      (python-getattr object slot-name)
                                     ;; Provide some restarts for missing handler or missing slot
                                     (return-nil () nil)
                                     (return-zero () 0)
@@ -41,14 +41,7 @@
                                       :interactive (lambda ()
                                                      (format t "Enter a value to return: ")
                                                      (list (read)))
-                                      return-value)
-                                    (set-new-handler (new-handler)
-                                      :report "Provide a hander function for this class"
-                                      :interactive (lambda ()
-                                                     (format t "Enter a handler function to use:")
-                                                     (list (eval (read))))
-                                      (register-handler object new-handler)
-                                      (funcall new-handler object slot-name)))))))
+                                      return-value))))))
          
          ;; Callback. Value returned is a list, containing the function ID then the args
          (#\c

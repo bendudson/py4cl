@@ -592,7 +592,7 @@ value is in lisp then just use the lisp functions:
 #+RESULTS:
 : #2A((0.0 1.0) (-1.0 0.0))
 
-** Passing lisp objects to python: =register-handler=
+** Passing lisp objects to python: =python-getattr=
 
 Lisp structs and class objects can be passed to python, put into data structures and
 returned:
@@ -617,31 +617,26 @@ contains a handle. The lisp object is stored in a hash map
 the object from the hash map.
 
 To enable python to access slots, or call methods on a struct or class, a
-handler function needs to be registered. This function will be called when a
+handler function needs to be registered. This is done by providing a method 
+for generic function =python-getattr=. This function will be called when a
 python function attempts to access attributes of an object (=__getattr__=
 method).
-
-*Note* This part is somewhat experimental. A nicer interface may be possible, but
-for now a user-supplied function provides a flexible solution. It does not yet
-take account of inheritance, but that should be possible with a bit more thought.
 
 #+BEGIN_SRC lisp
 ;; Define a class with some slots
 (defclass test-class ()
   ((value :initarg :value)))
 
-(let ((instance (make-instance 'test-class :value 21)))
- 
-  ;; Register a handler for this class of object, by passing in an instance.
-  ;; Any objects with the same CLASS-OF class object will use this handler
-  (py4cl:register-handler instance
-    (lambda (object slot-name)
-      (cond
-        ((string= slot-name "value") ; data member
-          (slot-value object 'value))
-        ((string= slot-name "func")  ; method, return a function
-          (lambda (arg) (* 2 arg))))))
+;; Define a method to handle calls from python
+(defmethod py4cl:python-getattr ((object test-class) slot-name)
+  (cond
+    ((string= slot-name "value") ; data member
+      (slot-value object 'value))
+    ((string= slot-name "func")  ; method, return a function
+      (lambda (arg) (* 2 arg)))
+    (t (call-next-method)))) ; Otherwise go to next method
 
+(let ((instance (make-instance 'test-class :value 21))) 
   ;; Get the value from the slot, call the method
   ;; python: instance.func(instance.value)
   (py4cl:chain instance (func (py4cl:chain instance value))))  ; => 42
@@ -650,25 +645,24 @@ take account of inheritance, but that should be possible with a bit more thought
 #+RESULTS:
 : 42
 
-For classes a handler can be registered without passing in an object,
-using [[http://clhs.lisp.se/Body/f_find_c.htm][find-class]]:
+Inheritance then works as usual with CLOS methods:
 #+BEGIN_SRC lisp
-;; Define a class with some slots
-(defclass test-class ()
-  ((value :initarg :value)))
+;; Class inheriting from test-class
+(defclass child-class (test-class)
+  ((other :initarg :other)))
 
-;; Register a handler for this class
-(py4cl:register-handler (find-class 'test-class)
-  (lambda (object slot-name)
-    (cond
-      ((string= slot-name "value") ; data member
-        (slot-value object 'value))
-      ((string= slot-name "func")  ; method, return a function
-        (lambda (arg) (* 2 arg))))))
+;; Define method which passes to the next method if slot not recognised
+(defmethod py4cl:python-getattr ((object child-class) slot-name)
+  (cond
+    ((string= slot-name "other")
+     (slot-value object 'other))
+    (t (call-next-method))))
 
-(let ((instance (make-instance 'test-class :value 21)))
-  (py4cl:chain instance (func (py4cl:chain instance value))))  ; => 42
+(let ((object (make-instance 'child-class :value 42 :other 3)))
+  (list 
+    (py4cl:chain object value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
+    (py4cl:chain object other))) ;=> (42 3)
 #+END_SRC
 
 #+RESULTS:
-: 42
+| 42 | 3 |

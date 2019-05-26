@@ -526,43 +526,53 @@ class testclass:
 (defclass test-class ()
   ((value :initarg :value)
    (thing :initarg :thing)))
-  
+
+;; Define a method to handle slot access from python
+(defmethod py4cl:python-getattr ((object test-class) slot-name)
+  (cond
+    ((string= slot-name "value")
+     (slot-value object 'value))
+    ((string= slot-name "thing")
+     (slot-value object 'thing))
+    ((string= slot-name "func")
+     (lambda (arg) (* 2 arg)))
+    (t (call-next-method))))
+
 (deftest lisp-class-slots (pytests)
   (let ((object (make-instance 'test-class :thing 23 :value 42)))
-    ;; If no handler is registered then a condition is signalled
-    (py4cl::clear-handler object) ; Make sure there is no handler
-    (assert-condition py4cl::missing-handler-error
-        (py4cl:chain object value))
-    
-    ;; Register a handler for this class
-    (py4cl:register-handler object
-                            (lambda (object slot-name)
-                              (cond
-                                ((string= slot-name "value")
-                                 (slot-value object 'value))
-                                ((string= slot-name "thing")
-                                 (slot-value object 'thing))
-                                (t nil))))
-    
+    ;; Slot access
     (assert-equalp 23
         (py4cl:python-call "lambda x : x.thing" object))
     (assert-equalp 42
-        (py4cl:chain object value)))
+        (py4cl:chain object value))
 
+    ;; Function (method) call
+    (assert-equalp 42
+        (py4cl:chain object (func 21))))
+    
   ;; The handler should work for other objects of the same class (class-of)
   (let ((object2 (make-instance 'test-class :thing "hello" :value 314)))
     (assert-equalp "hello"
-        (py4cl:chain object2 thing))))
+                   (py4cl:chain object2 thing))))
 
-(deftest lisp-class-methods (pytests)
-  (let ((object (make-instance 'test-class :thing 23 :value 42)))
-    ;; Register a handler for this class, with a method "func"
-    (py4cl:register-handler object
-                            (lambda (object slot-name)
-                              (cond
-                                ((string= slot-name "func")
-                                 (lambda (arg) (* 2 arg))))))
+
+;; Class inheriting from test-class
+(defclass child-class (test-class)
+  ((other :initarg :other)))
+
+;; Define method which passes to the next method if slot not recognised
+(defmethod py4cl:python-getattr ((object child-class) slot-name)
+  (cond
+    ((string= slot-name "other")
+     (slot-value object 'other))
+    (t (call-next-method))))
+
+(deftest lisp-class-inherit (pytests)
+  (let ((object (make-instance 'child-class :thing 23 :value 42 :other 3)))
+    (assert-equalp 23
+        (py4cl:python-call "lambda x : x.thing" object))
     (assert-equalp 42
-        (py4cl:chain object (func 21)))))
-
+        (py4cl:chain object value))
+    (assert-equalp 3
+        (py4cl:chain object other))))
 

@@ -25,4 +25,4 @@
    #:import-module
    #:export-function)
   (:export ; lisp-classes
-   #:register-handler))
+   #:python-getattr))
