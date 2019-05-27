@@ -576,3 +576,15 @@ class testclass:
     (assert-equalp 3
         (py4cl:chain object other))))
 
+(deftest python-getattr (pytests)
+  (py4cl:python-exec "
+class testclass:
+  pass")
+  
+  (let ((obj (py4cl:chain (testclass))))
+    (setf (py4cl:chain obj data_attrib) 21)
+
+    (assert-equalp 21
+        (py4cl:python-getattr obj "data_attrib"))))
+
+  

@@ -306,4 +306,6 @@ This version evaluates the result, returning it as a lisp value if possible.
 "
   `(python-eval (remote-objects ,@body)))
 
-
+(defmethod python-getattr ((object python-object) (slot-name string))
+  "Get attribute from a python object. SLOT-NAME should be a string."
+  (python-eval object "." slot-name))
