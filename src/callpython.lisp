@@ -49,6 +49,12 @@
             (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
               ;; Send a reply
               (dispatch-reply write-stream return-value))))
+
+         ;; Print stdout
+         (#\p
+          (let ((print-string (stream-read-value read-stream)))
+            (princ print-string)))
+         
          (otherwise (error "Unhandled message type"))))))
 
 (defun python-eval* (cmd-char &rest args)

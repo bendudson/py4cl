@@ -372,6 +372,25 @@ a string rather than a symbol as the first element:
 #+END_SRC
 Note that the keyword is converted, converting to lower case.
 
+** Printing from python
+
+Since standard output is used for communication between lisp and python, this is
+redirected (to a =StringIO= buffer) while user python code is running. The
+output from python functions is then sent to lisp, to be printed to
+=*standard-output*=.  This means that anything printed by the python process may
+only appear in chunks, as it is sent to lisp. The following does however work as
+expected:
+#+BEGIN_SRC lisp :results output
+(py4cl:chain (print "hello world")) 
+; => prints "hello world", returns NIL
+#+END_SRC
+
+#+RESULTS:
+: hello world
+
+In python =print_function= is imported from =__future__=, so should be available
+as a function in python 2.6+, as well as in version 3+.
+
 ** Asynchronous python functions: =python-call-async=
 
 One of the advantages of using streams to communicate with a separate

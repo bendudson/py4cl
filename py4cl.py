@@ -1,3 +1,11 @@
+# Python interface for py4cl
+# 
+# This code handles messages from lisp, marshals and unmarshals data,
+# and defines classes which forward all interactions to lisp.
+#
+# Should work with python 2.7 or python 3
+
+from __future__ import print_function
 
 import sys
 import numbers
@@ -234,11 +242,36 @@ def send_value(value):
     write_stream.write(value_str)
     write_stream.flush()
 
+def return_stdout():
+    """
+    Return the contents of redirect_stream, to be printed to stdout
+    """
+    global redirect_stream
+    global return_values
+    
+    contents = redirect_stream.getvalue()
+    if not contents:
+        return  # Nothing to send
+
+    redirect_stream = StringIO() # New stream, delete old one
+
+    old_return_values = return_values # Save to restore after
+    try:
+        return_values = 0 # Need to return the string, not a handle
+        sys.stdout = write_stream
+        write_stream.write("p")
+        send_value(contents)
+    finally:
+        return_values = old_return_values
+        sys.stdout = redirect_stream
+    
 def return_error(err):
     """
     Send an error message
     """
     global return_values
+
+    return_stdout() # Send stdout if any
     
     old_return_values = return_values # Save to restore after
     try:
@@ -256,6 +289,8 @@ def return_value(value):
     """
     if isinstance(value, Exception):
         return return_error(value)
+
+    return_stdout() # Send stdout if any
     
     # Mark response as a returned value
     try:
