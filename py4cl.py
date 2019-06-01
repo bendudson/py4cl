@@ -65,18 +65,22 @@ class LispCallbackObject (object):
         
         args   Arguments to be passed to the function
         """
-
+        global return_values
+        
         # Convert kwargs into a sequence of ":keyword value" pairs
         # appended to the positional arguments
         allargs = args
         for key, value in kwargs.items():
             allargs += (Symbol(":"+str(key)), value)
-    
+
+        old_return_values = return_values # Save to restore after
         try:
+            return_values = 0 # Need to send the values
             sys.stdout = write_stream
             write_stream.write("c")
             send_value((self.handle, allargs))
         finally:
+            return_values = old_return_values
             sys.stdout = redirect_stream
 
         # Wait for a value to be returned.

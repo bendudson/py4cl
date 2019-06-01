@@ -588,3 +588,8 @@ class testclass:
     (assert-equalp 3
         (py4cl:chain object other))))
 
+(deftest callback-in-remote-objects (pytests)
+  ;; Callbacks send values to lisp in remote-objects environments
+  (assert-equalp 6
+      (py4cl:remote-objects*
+        (py4cl:python-call (lambda (x y) (* x y)) 2 3))))
