@@ -167,6 +167,10 @@ try:
         array([[1, 2],     => '#2A((1 2) (3 4))'
               [3, 4]])
         """
+        if obj.ndim == 0:
+            # Convert to scalar then lispify
+            return lispify(numpy.asscalar(obj))
+        
         def nested(obj):
             """Turns an array into nested ((1 2) (3 4))"""
             if obj.ndim == 1: 
@@ -237,7 +241,12 @@ def send_value(value):
     """
     Send a value to stdout as a string, with length of string first
     """
-    value_str = lispify(value)
+    try:
+        value_str = lispify(value)
+    except Exception as e:
+        # At this point the message type has been sent,
+        # so we can't change to throw an exception/signal condition
+        value_str = "Lispify error: " + str(e)
     print(len(value_str))
     write_stream.write(value_str)
     write_stream.flush()
