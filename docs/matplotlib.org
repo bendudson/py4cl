@@ -182,3 +182,71 @@ with an arrow.
 #+RESULTS:
 : NIL
 
+** Plotting a scatter of points
+
+#+CAPTION: A simple example showing how to plot a scatter of points with matplotlib.
+#+NAME:   fig:scatter
+[[./matplotlib_scatter.png]]
+
+We'll load Numpy's random routines to generate random numbers,
+in addition to the =np= and =plt= modules already loaded:
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy.random" :as "nprand")
+#+END_SRC
+
+#+RESULTS:
+: T
+
+#+BEGIN_SRC lisp
+(let* ((n 1024)
+       (x (nprand:normal 0 1 n))
+       (y (nprand:normal 0 1 n))
+       (theta (np:arctan2 y x)))
+
+  (plt:axes #(0.025 0.025 0.95 0.95))
+  (plt:scatter x y :s 75 :c theta :alpha 0.5)
+
+  (plt:xlim -1.5 1.5)
+  (plt:xticks #())
+  (plt:ylim -1.5 1.5)
+  (plt:yticks #()))
+
+(plt:show)
+#+END_SRC
+
+#+RESULTS:
+: NIL
+
+** Displaying the contours of a function
+
+#+CAPTION: An example showing how to display the contours of a function with matplotlib.
+#+NAME:   fig:contour
+[[./matplotlib_contour.png]]
+
+#+BEGIN_SRC lisp
+(defun f (x y)
+  (* 
+    (+ 1 (* -0.5 x) (expt x 5) (expt y 3))
+    (exp (- 0 (* x x) (* y y)))))
+
+(let* ((n 256)
+       (xy (np:meshgrid (np:linspace -3 3 n) 
+                        (np:linspace -3 3 n)))
+       (x (aref xy 0))
+       (y (aref xy 1)))
+
+  (plt:axes #(0.025 0.025 0.95 0.95))
+
+  (plt:contourf x y (py4cl:python-call (np:vectorize #'f) x y) 8 :alpha 0.75)
+
+  (let ((c (plt:contour x y (py4cl:python-call (np:vectorize #'f) x y) 8 :colors "black" :linewidth 0.5)))
+    (plt:clabel c :inline 1 :fontsize 10)))
+
+(plt:xticks #())
+(plt:yticks #())
+(plt:show)
+#+END_SRC
+
+#+RESULTS:
+: NIL
+

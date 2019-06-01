@@ -23,3 +23,32 @@ The first character can be:
 
 Strings sent to Lisp are processed with `read-from-string` to obtain a
 value. 
+
+** Garbage collection
+
+When lisp objects are garbage collected, which may be triggered by calling:
+#+BEGIN_SRC lisp
+(tg:gc :full t)
+#+END_SRC
+
+#+RESULTS:
+: NIL
+
+the finalisation function puts the corresponding python handle into a list
+#+BEGIN_SRC lisp
+py4cl::*freed-python-objects*
+#+END_SRC
+
+#+RESULTS:
+: NIL
+
+When =python-eval= or =python-exec= are called, these call =delete-freed-python-objects= which
+calls python to delete the corresponding python objects from the object store.
+To see how many objects are in the store:
+#+BEGIN_SRC lisp
+(py4cl:python-eval "len(_py4cl_objects)")
+#+END_SRC
+
+#+RESULTS:
+: 2
+
