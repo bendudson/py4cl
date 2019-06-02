@@ -250,3 +250,40 @@ in addition to the =np= and =plt= modules already loaded:
 #+RESULTS:
 : NIL
 
+** 3D plots
+
+#+CAPTION: A simple example of 3D plotting.
+#+NAME:   fig:3d
+[[./matplotlib_3d.png]]
+
+#+BEGIN_SRC lisp
+(py4cl:import-module "numpy" :as "np")
+(py4cl:import-module "matplotlib.pyplot" :as "plt")
+(py4cl:import-function "Axes3D" :from "mpl_toolkits.mplot3d")
+
+;; Load array-operations (aops) for VECTORIZE macro
+(ql:quickload :array-operations)
+#+END_SRC
+
+#+RESULTS:
+| :ARRAY-OPERATIONS |
+
+#+BEGIN_SRC lisp
+(let* ((fig (plt:figure))
+       (ax (Axes3D fig))
+       (xy (np:meshgrid (np:arange -4 4 0.25)
+                        (np:arange -4 4 0.25)))
+       (x (aref xy 0))
+       (y (aref xy 1))
+
+       (r (aops:vectorize (x y) (sqrt (+ (* x x) (* y y)))))
+       (z (aops:vectorize (r) (sin r))))
+
+  (py4cl:chain ax (plot_surface x y z :rstride 1 :cstride 1))
+  (py4cl:chain ax (contourf x y z :zdir "z" :offset -2))
+  (py4cl:chain ax (set_zlim -2 2)))
+(plt:show)
+#+END_SRC
+
+#+RESULTS:
+: NIL
