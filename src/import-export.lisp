@@ -99,8 +99,11 @@ RELOAD specifies that the package should be deleted and reloaded.
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
             (loop for name across fn-names
-               for fn-symbol = (read-from-string name)
-               for fullname = (concatenate 'string as "." name) ; Include module prefix
+               for fn-symbol = (read-from-string
+                                (substitute #\- #\_
+                                            name)) ; make names lispy
+               for fullname = (concatenate 'string as "."name)
+                                        ; Include module prefix
                append `((import-function ,fullname :as ,fn-symbol
                             :docstring ,(python-eval (concatenate 'string
                                                                   as "." name ".__doc__")))
