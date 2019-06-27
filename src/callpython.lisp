@@ -1,6 +1,6 @@
 (in-package :py4cl)
 
-(define-condition python-error (error)
+(define-condition pyerror (error)
   ((text :initarg :text :reader text))
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
@@ -20,7 +20,7 @@
          (#\r (return-from dispatch-messages
                 (stream-read-value read-stream)))
          ;; Error
-         (#\e (error 'python-error  
+         (#\e (error 'pyerror  
                      :text (stream-read-string read-stream)))
 
          ;; Delete object. This is called when an UnknownLispObject is deleted
@@ -57,7 +57,7 @@
          
          (otherwise (error "Unhandled message type"))))))
 
-(defun python-eval* (cmd-char &rest args)
+(defun pyeval* (cmd-char &rest args)
   "Internal function, which converts ARGS into a string to be evaluated
 This handles both EVAL and EXEC calls with CMD-CHAR being different
 in the two cases. 
@@ -77,42 +77,42 @@ Anything in ARGS which is not a string is passed through PYTHONIZE
     ;; Wait for response from Python
     (dispatch-messages *python*)))
 
-(defun python-eval (&rest args)
+(defun pyeval (&rest args)
   "Evaluate an expression in python, returning the result
 Arguments ARGS can be strings, or other objects. Anything which 
 is not a string is converted to a python value
 
 Examples:
 
- (python-eval \"[i**2 for i in range(\" 4 \")]\") => #(0 1 4 9)
+ (pyeval \"[i**2 for i in range(\" 4 \")]\") => #(0 1 4 9)
 
  (let ((a 10) (b 2))
-   (py4cl:python-eval a "*" b)) => 20
+   (py4cl:pyeval a "*" b)) => 20
 "
    (delete-freed-python-objects)
-   (apply #'python-eval* #\e args))
+   (apply #'pyeval* #\e args))
 
-(defun (setf python-eval) (value &rest args)
+(defun (setf pyeval) (value &rest args)
   "Set an expression to a value. Just adds \"=\" and the value
 to the end of the expression. Note that the result is evaluated
 with exec rather than eval.
 
 Examples:
 
-    (setf (python-eval \"a\") 2)  ; python \"a=2\"
+    (setf (pyeval \"a\") 2)  ; python \"a=2\"
 "
-  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
+  (apply #'pyeval* #\x (append args (list "=" (py4cl::pythonize value))))
   value)
 
-(defun python-exec (&rest args)
+(defun pyexec (&rest args)
   "Execute (using exec) an expression in python.
 This is used for statements rather than expressions.
 
 "
   (delete-freed-python-objects)
-  (apply #'python-eval* #\x args))
+  (apply #'pyeval* #\x args))
 
-(defun python-call (fun-name &rest args)
+(defun pycall (fun-name &rest args)
   "Call a python function, given the function name as a string
 and additional arguments. Keywords are converted to keyword arguments."
   (python-start-if-not-alive)
@@ -123,7 +123,7 @@ and additional arguments. Keywords are converted to keyword arguments."
     (force-output stream))
   (dispatch-messages *python*))
 
-(defun python-call-async (fun-name &rest args)
+(defun pycall-async (fun-name &rest args)
   "Call a python function asynchronously. 
 Returns a lambda which when called returns the result."
   (python-start-if-not-alive)
@@ -150,20 +150,20 @@ Returns a lambda which when called returns the result."
             ;; If no handle then already have the value
             value)))))
 
-(defun python-method (obj method-name &rest args)
+(defun pymethod (obj method-name &rest args)
   "Call a given method on an object OBJ. METHOD-NAME can be a
 symbol (converted to lower case) or a string. 
 
 Examples:
  
-  (python-method \"hello {0}\" 'format \"world\") 
+  (pymethod \"hello {0}\" 'format \"world\") 
   ; => \"hello world\"
 
-  (python-method '(1 2 3) '__len__)
+  (pymethod '(1 2 3) '__len__)
   ; => 3
 "
   (python-start-if-not-alive)
-  (py4cl:python-eval
+  (py4cl:pyeval
    (py4cl::pythonize obj)
    (format nil ".~(~a~)" method-name)
    (if args 
@@ -230,7 +230,7 @@ Examples:
      => \"o\"
 "
   (python-start-if-not-alive)
-  `(py4cl:python-eval
+  `(py4cl:pyeval
     ;; TARGET 
     ,@(if (consp target)
           ;; A list -> python function call
@@ -268,7 +268,7 @@ Examples:
              ((symbolp link) (list (format nil ".~(~a~)" link)))
              (t (list "[" (list 'py4cl::pythonize link) "]"))))))
 
-(defun python-setf (&rest args)
+(defun pysetf (&rest args)
   "Set python variables in ARGS (\"var1\" value1 \"var2\" value2 ...) "
   ;; pairs converts a list (a b c d) into a list of pairs ((a b) (c d))
   (labels ((pairs (items)
@@ -312,6 +312,6 @@ This is useful if performing operations on large datasets.
 
 This version evaluates the result, returning it as a lisp value if possible.
 "
-  `(python-eval (remote-objects ,@body)))
+  `(pyeval (remote-objects ,@body)))
 
 

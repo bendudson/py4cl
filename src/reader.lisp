@@ -23,10 +23,10 @@ HANDLE slot is a unique key used to refer to a value in python."
      do (let ((python-id (first id-handle))
               (handle (second id-handle)))
           (if (and
-               (python-alive-p) ; If not alive, python-exec will start python
+               (python-alive-p) ; If not alive, pyexec will start python
                (= *current-python-process-id* python-id))  ; Python might have restarted
               ;; Call the internal function, to avoid infinite recursion or deadlock
-              (python-eval* #\x "
+              (pyeval* #\x "
 try:
   del _py4cl_objects[" handle "]
 except:

@@ -4,26 +4,26 @@
   (:use #:cl #:iterate)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
-   #:*python-command*   ; The executable to run (string)
-   #:python-start
-   #:python-stop
+   #:*pycmd*   ; The executable to run (string)
+   #:pystart
+   #:pystop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:python-version-info)
+   #:pyversion-info)
   (:export ; callpython
-   #:python-error
-   #:python-eval
-   #:python-exec
-   #:python-call
-   #:python-call-async
-   #:python-method
+   #:pyerror
+   #:pyeval
+   #:pyexec
+   #:pycall
+   #:pycall-async
+   #:pymethod
    #:chain
-   #:python-setf
+   #:pysetf
    #:remote-objects
    #:remote-objects*)
   (:export ; import-export
-   #:import-function
-   #:import-module
+   #:defpyfun
+   #:defpymodule
    #:export-function)
   (:export ; lisp-classes
    #:python-getattr))

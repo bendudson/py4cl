@@ -2,7 +2,7 @@
 
 (in-package :py4cl)
 
-(defvar *python-command* "python"
+(defvar *pycmd* "python"
   "String, the Python executable to launch
 e.g. \"python\" or \"python3\"")
 
@@ -14,7 +14,7 @@ e.g. \"python\" or \"python3\"")
 is used to prevent garbage collection from deleting objects in the wrong
 python session")
 
-(defun python-start (&optional (command *python-command*))
+(defun pystart (&optional (command *pycmd*))
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
 in addition to returning it.
@@ -43,17 +43,17 @@ Optionally pass the process object returned by PYTHON-START"
   "If no python process is running, tries to start it.
 If still not alive, raises a condition."
   (unless (python-alive-p)
-    (python-start))
+    (pystart))
   (unless (python-alive-p)
     (error "Could not start python process")))
 
 ;; Function defined in writer.lisp, which clears an object store
 (declaim (ftype (function () t) clear-lisp-objects))
 
-(defun python-stop (&optional (process *python*))
+(defun pystop (&optional (process *python*))
   ;; If python is not running then return
   (unless (python-alive-p process)
-    (return-from python-stop))
+    (return-from pystop))
 
   ;; First ask python subprocess to quit
   ;; Could give it a few seconds to close nicely
@@ -69,7 +69,7 @@ If still not alive, raises a condition."
   ;; Clear lisp objects
   (clear-lisp-objects))
 
-(defun python-version-info ()
+(defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."
   (python-start-if-not-alive)
   (let ((stream (uiop:process-info-input *python*)))
