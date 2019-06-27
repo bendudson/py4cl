@@ -8,7 +8,7 @@
   1. Replaces underscores with hyphens.
   2. CamelCase is converted to CAMEL-CASE"
   (iter (for ch in-string name)
-	(collect (cond ((and (upper-case-p ch) (not (first-iteration-p))) #\-)
+        (collect (cond ((and (upper-case-p ch) (not (first-iteration-p))) #\-)
                        ((char= ch #\_) #\-)
                        (t ch))
           into out-string 
@@ -18,6 +18,7 @@
         (finally (return (string-upcase out-string)))))
 
 (defmacro import-function (fun-name &key docstring
+                                      (arg-list '(&rest args))
                                       (as (read-from-string fun-name))
                                       from)
   "Define a function which calls python
@@ -54,9 +55,14 @@ module to be imported into the python session.
                       (symbol as)
                       (t (error "AS keyword must be string or symbol")))))
     
-    `(defun ,fun-symbol (&rest args)
+    `(defun ,fun-symbol (&key ,@arg-list)
        ,(or docstring "Python function")
-       (apply #'python-call ,fun-name args))))
+       (funcall #'python-call ,fun-name ,@arg-list))))
+;; (apply #'python-call ,fun-name
+;;               ,@`(iter (for arg in arg-list)
+;;                        (for val in ,arg-list)
+;;                        (appending `((intern ,arg 'keyword)
+;;                                     (,arg)))))
 
 (defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
   "Import a python module as a Lisp package. The module name should be
@@ -113,13 +119,33 @@ RELOAD specifies that the package should be deleted and reloaded.
                                  :use '())))
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
-            (loop for name across fn-names
-               for fn-symbol = (read-from-string (lispify-name name))
-               for fullname = (concatenate 'string as "." name) ; Include module prefix
-               append `((import-function ,fullname :as ,fn-symbol
-                            :docstring ,(python-eval (concatenate 'string
-                                                                  as "." name ".__doc__")))
-                        (export ',fn-symbol ,*package*))))))
+            (iter (for fn-name in-vector fn-names)
+                  (for fn-symbol = (read-from-string (lispify-name fn-name)))
+                  (for fullname = (concatenate 'string as "." fn-name)) ; Include module prefix
+                  (format t "Considering ~D~%" fullname)
+                  (when (member
+                         (slot-value (python-eval fullname) 'type)
+                         '("<class 'function'>") ;;  "<class 'builtin_function_or_method'>"
+                         :test 'string=)
+                    (let ((fn-args
+                             (mapcar #'intern
+                                     (mapcar #'lispify-name
+                                             (python-eval
+                                              (concatenate 'string
+                                                           fullname ".__code__.co_varnames")))))
+                          (fn-doc (python-eval
+                                   (concatenate 'string
+                                                as "." fn-name ".__doc__")))
+                          (fn-argcount 
+                           (python-eval
+                            (concatenate 'string
+                                         as "." fn-name ".__code__.co_argcount"))))
+                      (format t "Exporting ~d~%" fn-symbol)
+                      (appending `((import-function ,fullname
+                                                    :as ,fn-symbol
+                                                    :arg-list ,(subseq fn-args 0 fn-argcount)
+                                                    :docstring ,fn-doc)
+                                   (export ',fn-symbol ,*package*)))))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
