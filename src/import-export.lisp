@@ -17,150 +17,119 @@
           (collect (char-downcase ch) into out-string result-type string))
         (finally (return (string-upcase out-string)))))
 
-(defmacro import-function (fun-name &key docstring
-                                      (arg-list '(&rest args))
-                                      (as (read-from-string fun-name))
-                                      from)
-  "Define a function which calls python
+(defmacro import-function (fun-name module-name
+                           &key (as (lispify-name fun-name))
+                             (package *package*))
+  "Defines a function which calls python
 Example
   (py4cl:python-exec \"import math\")
   (py4cl:import-function \"math.sqrt\")
-  (math.sqrt 42)
-  -> 6.4807405
+  (math.sqrt 42) -> 6.4807405
 
 Keywords:
-
-AS specifies the symbol to be used in Lisp. This can be a symbol
-or a string. If a string is given then it is read using READ-FROM-STRING.
-
-DOCSTRING is a string which becomes the function docstring
-
-FROM specifies a module to load the function from. This will cause the python
-module to be imported into the python session.
+  AS is a string, denoting the symbol to which the function is assigned.
+  DOCSTRING is a string which becomes the function docstring
+  FROM specifies a module to load the function from. This will cause the python
+    module to be imported into the python session.
 "
-  ;; Note: a string input is used, since python is case sensitive
-  (unless (typep fun-name 'string)
-    (error "Argument to IMPORT-FUNCTION must be a string"))
+  (check-type fun-name string)
+  (check-type as string)
+  (check-type package package)
+  (when module-name
+    (python-start-if-not-alive)
+    (check-type module-name string)   
+    (python-exec "from " module-name " import " fun-name))
   
-  (if from
-      (progn
-        ;; Ensure that python is running
-        (python-start-if-not-alive)
-        ;; import the function into python
-        (python-exec "from " (string from) " import " fun-name)))
-  
-  ;; Input AS specifies the Lisp symbol, either as a string or a symbol
-  (let ((fun-symbol (typecase as
-                      (string (read-from-string as))
-                      (symbol as)
-                      (t (error "AS keyword must be string or symbol")))))
-    
-    `(defun ,fun-symbol ,arg-list
-       ,(or docstring "Python function")
-       ,(ecase (car arg-list)
-          (&key `(funcall #'python-call ,fun-name ,@(cdr arg-list)))
-          (&rest `(apply #'python-call ,fun-name args))))))
-;; (apply #'python-call ,fun-name
-;;               ,@`(iter (for arg in arg-list)
-;;                        (for val in ,arg-list)
-;;                        (appending `((intern ,arg 'keyword)
-;;                                     (,arg)))))
+  (let ((fun-symbol (intern as package))
+        (fullname (concatenate 'string module-name "." fun-name))
+        (fun-doc (python-eval module-name "." fun-name ".__doc__")))
+    (if (member
+           (slot-value (python-eval fullname) 'type)
+           '("<class 'function'>") ;;  "<class 'builtin_function_or_method'>"
+           :test 'string=)
+          (let* ((fun-args ;; includes all the local variables
+                  (mapcar-> (python-eval fullname ".__code__.co_varnames")
+                            #'lispify-name
+                            #'intern))
+                 (fun-argcount ;; to exclude the local variables
+                  (python-eval fullname ".__code__.co_argcount"))
+                 (arg-list (subseq fun-args 0 fun-argcount)))
+            `(progn
+               (defun ,fun-symbol (&key ,@arg-list)
+                 ,(or fun-doc "Python function")
+                 (funcall #'python-call ,fun-name ,@arg-list))
+               (export ',fun-symbol ,package)))
+          `(progn
+             (defun ,fun-symbol (&rest args)
+                    ,(or fun-doc "Python function")
+                    (apply #'python-call ,fun-name args))
+             (export ',fun-symbol ,package)))))
+
+
+(defmacro import-submodules (module-name)
+    (let ((submodules
+           (py4cl:python-eval "[(modname, ispkg) for importer, modname, ispkg in "
+                              "pkgutil.iter_modules("
+                              module-name
+                              ".__path__)]")))
+      (iter (for (submodule has-submodules) in-vector submodules)
+            (collect `(import-module ,(concatenate 'string
+                                                   module-name "." submodule)
+                                     ,has-submodules)))))
+
+
+
+(defun mapcar-> (list &rest functions)
+  "Applies FUNCTIONS successively to LIST."
+  (if (null (car functions))
+      list
+      (apply #'mapcar-> (mapcar (car functions) list) (cdr functions))))
 
 (defmacro import-module (module-name has-submodules
-                         &key (as module-name as-supplied-p) (reload nil))
-  "Import a python module as a Lisp package. The module name should be
-a string.
+                         &key (as (lispify-name module-name))
+                           (reload nil))
+  "Import a python module (and its submodules) as Lisp package(s). 
+  Example:
+    (py4cl:import-module \"math\" :as \"m\")
+    (m:sqrt 4)   ; => 2.0
+\"Package already exists.\" is returned if the package exists and :RELOAD 
+is NIL."
+  (check-type module-name string) ; is there a way to (declaim (macrotype ...?
+  (check-type as string)          
 
-Example:
-  (py4cl:import-module \"math\")
-  (math:sqrt 4)   ; => 2.0
-
-or using 
-Keywords:
-AS specifies the name to be used for both the Lisp package and python module.
-   It should be a string, and if not supplied then the module name is used.
-
-RELOAD specifies that the package should be deleted and reloaded.
-       By default if the package already exists then a string is returned.
-"
-  (unless (typep module-name 'string)
-    (error "Argument to IMPORT-MODULE must be a string"))
-  (unless (typep as 'string)
-    (error "Keyword argument AS to IMPORT-MODULE must be a string"))
-
-  ;; Check if the package already exists, and delete if reload is true
-  ;; This is so that it is reloaded into python
-  (let ((package-sym (read-from-string as)))
+  (let ((package-sym (read-from-string as))) ;; reload
     (if (find-package package-sym)
         (if reload 
             (delete-package package-sym)
             (return-from import-module "Package already exists."))))
   
-  ;; Ensure that python is running
-  (python-start-if-not-alive)
+  (python-start-if-not-alive) ; Ensure that python is running
 
-  ;; Import the required module in python
-  (if as-supplied-p
-      (python-exec (concatenate 'string
-                                "import " module-name " as " as))
-      (python-exec (concatenate 'string
-                                "import " module-name)))
+  (python-exec "import " module-name) ; Import the required module in python
 
-  ;; Also need to import the "inspect" module
   (python-exec "import inspect")
   (python-exec "import pkgutil")
-
   
-  
-  ;; fn-names  All callables whose names don't start with "_"
-  (let ((fn-names (python-eval (concatenate 'string
-                                            "[name for name, fn in inspect.getmembers("
-                                            as
-                                            ", callable) if name[0] != '_']")))
+  ;; fn-names  All callables whose names don't start with "_" 
+  (let ((fun-names (python-eval "[name for name, fn in inspect.getmembers("
+                                 module-name
+                                 ", callable) if name[0] != '_']"))
         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
         ;; so that the result reflects changes to the readtable
         ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
         ;; Note that the package doesn't use CL to avoid shadowing
-        (*package* (make-package (string (read-from-string as))
-                                 :use '())))
+        (exporting-package (make-package as :use '())))
+    ;; (format t "Package created!~%")
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
-            (when has-submodules
-              (let ((submodules
-                     (py4cl:python-eval "[(modname, ispkg) for importer, modname, ispkg in "
-                                        "pkgutil.iter_modules("
-                                        module-name
-                                        ".__path__)]")))
-                (iter (for (submodule has-submodules) in-vector submodules)
-                      (collect `(import-module ,(concatenate 'string
-                                                             module-name "." submodule)
-                                               ,has-submodules)))))
-            (iter (for fn-name in-vector fn-names)
-                  (for fn-symbol = (read-from-string (lispify-name fn-name)))
-                  (for fullname = (concatenate 'string as "." fn-name)) ; Include module prefix
-                  (for fn-doc = (python-eval as "." fn-name ".__doc__"))
-                  (format t "Exporting ~d:~d~%" *package* fn-symbol)
-                  (if (member
-                         (slot-value (python-eval fullname) 'type)
-                         '("<class 'function'>") ;;  "<class 'builtin_function_or_method'>"
-                         :test 'string=)
-                      (let ((fn-args
-                             (mapcar #'intern
-                                     (mapcar #'lispify-name
-                                             (python-eval fullname ".__code__.co_varnames"))))
-                            
-                            (fn-argcount 
-                             (python-eval as "." fn-name ".__code__.co_argcount")))
-                        (appending `((import-function ,fullname
-                                                      :as ,fn-symbol
-                                                      :arg-list (&key ,@(subseq fn-args 0 fn-argcount))
-                                                      :docstring ,fn-doc)
-                                     (export ',fn-symbol ,*package*))))
-                      (appending `((import-function ,fullname
-                                                    :as ,fn-symbol
-                                                    :arg-list (&rest args)
-                                                      :docstring ,fn-doc)
-                                     (export ',fn-symbol ,*package*))))))))
+            (if has-submodules (macroexpand `(import-submodules ,module-name)))
+            ;; (format t "Submodules imported!~%")
+            (iter (for fun-name in-vector fun-names)
+                  (collect (macroexpand `(import-function
+                                          ,fun-name ,module-name
+                                          :package ,exporting-package)))))))
+
+
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
