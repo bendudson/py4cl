@@ -134,6 +134,17 @@ eval_locals = {}
 
 return_values = 0 # Try to return values to lisp. If > 0, always return a handle
                   # A counter is used, rather than Boolean, to allow nested environments.
+
+python_to_lisp_type = {
+  bool: "BOOLEAN",
+  type(None): "NULL",
+  int: "INTEGER",
+  float: "FLOAT",
+  complex: "COMPLEX",
+  list: "VECTOR",
+  dict: "HASH-TABLE",
+  str: "STRING"
+}
     
 ##################################################################
 # This code adapted from cl4py
@@ -154,6 +165,7 @@ lispifiers = {
     # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
+    type       : lambda x: python_to_lisp_type[x],
     Symbol     : str,
     UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
