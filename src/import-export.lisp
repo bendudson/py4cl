@@ -55,9 +55,11 @@ module to be imported into the python session.
                       (symbol as)
                       (t (error "AS keyword must be string or symbol")))))
     
-    `(defun ,fun-symbol (&key ,@arg-list)
+    `(defun ,fun-symbol ,arg-list
        ,(or docstring "Python function")
-       (funcall #'python-call ,fun-name ,@arg-list))))
+       ,(ecase (car arg-list)
+          (&key `(funcall #'python-call ,fun-name ,@(cdr arg-list)))
+          (&rest `(apply #'python-call ,fun-name args))))))
 ;; (apply #'python-call ,fun-name
 ;;               ,@`(iter (for arg in arg-list)
 ;;                        (for val in ,arg-list)
@@ -105,7 +107,8 @@ RELOAD specifies that the package should be deleted and reloaded.
 
   ;; Also need to import the "inspect" module
   (python-exec "import inspect")
-
+  
+  
   ;; fn-names  All callables whose names don't start with "_"
   (let ((fn-names (python-eval (concatenate 'string
                                             "[name for name, fn in inspect.getmembers("
@@ -122,30 +125,29 @@ RELOAD specifies that the package should be deleted and reloaded.
             (iter (for fn-name in-vector fn-names)
                   (for fn-symbol = (read-from-string (lispify-name fn-name)))
                   (for fullname = (concatenate 'string as "." fn-name)) ; Include module prefix
-                  (format t "Considering ~D~%" fullname)
-                  (when (member
+                  (for fn-doc = (python-eval as "." fn-name ".__doc__"))
+                  (format t "Exporting ~d:~d~%" *package* fn-symbol)
+                  (if (member
                          (slot-value (python-eval fullname) 'type)
                          '("<class 'function'>") ;;  "<class 'builtin_function_or_method'>"
                          :test 'string=)
-                    (let ((fn-args
+                      (let ((fn-args
                              (mapcar #'intern
                                      (mapcar #'lispify-name
-                                             (python-eval
-                                              (concatenate 'string
-                                                           fullname ".__code__.co_varnames")))))
-                          (fn-doc (python-eval
-                                   (concatenate 'string
-                                                as "." fn-name ".__doc__")))
-                          (fn-argcount 
-                           (python-eval
-                            (concatenate 'string
-                                         as "." fn-name ".__code__.co_argcount"))))
-                      (format t "Exporting ~d~%" fn-symbol)
+                                             (python-eval fullname ".__code__.co_varnames"))))
+                            
+                            (fn-argcount 
+                             (python-eval as "." fn-name ".__code__.co_argcount")))
+                        (appending `((import-function ,fullname
+                                                      :as ,fn-symbol
+                                                      :arg-list (&key ,@(subseq fn-args 0 fn-argcount))
+                                                      :docstring ,fn-doc)
+                                     (export ',fn-symbol ,*package*))))
                       (appending `((import-function ,fullname
                                                     :as ,fn-symbol
-                                                    :arg-list ,(subseq fn-args 0 fn-argcount)
-                                                    :docstring ,fn-doc)
-                                   (export ',fn-symbol ,*package*)))))))))
+                                                    :arg-list (&rest args)
+                                                      :docstring ,fn-doc)
+                                     (export ',fn-symbol ,*package*))))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
