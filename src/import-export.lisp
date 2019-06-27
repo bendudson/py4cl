@@ -66,7 +66,8 @@ module to be imported into the python session.
 ;;                        (appending `((intern ,arg 'keyword)
 ;;                                     (,arg)))))
 
-(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
+(defmacro import-module (module-name has-submodules
+                         &key (as module-name as-supplied-p) (reload nil))
   "Import a python module as a Lisp package. The module name should be
 a string.
 
@@ -107,6 +108,8 @@ RELOAD specifies that the package should be deleted and reloaded.
 
   ;; Also need to import the "inspect" module
   (python-exec "import inspect")
+  (python-exec "import pkgutil")
+
   
   
   ;; fn-names  All callables whose names don't start with "_"
@@ -122,6 +125,16 @@ RELOAD specifies that the package should be deleted and reloaded.
                                  :use '())))
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
+            (when has-submodules
+              (let ((submodules
+                     (py4cl:python-eval "[(modname, ispkg) for importer, modname, ispkg in "
+                                        "pkgutil.iter_modules("
+                                        module-name
+                                        ".__path__)]")))
+                (iter (for (submodule has-submodules) in-vector submodules)
+                      (collect `(import-module ,(concatenate 'string
+                                                             module-name "." submodule)
+                                               ,has-submodules)))))
             (iter (for fn-name in-vector fn-names)
                   (for fn-symbol = (read-from-string (lispify-name fn-name)))
                   (for fullname = (concatenate 'string as "." fn-name)) ; Include module prefix
