@@ -2,7 +2,22 @@
 
 (in-package :py4cl)
 
-(defun import-function (fun-name &key docstring
+(declaim (ftype (function (string) string) lispify-name))
+(defun lispify-name (name)
+  "Converts NAME to a lisp-like name. Specifically:
+  1. Replaces underscores with hyphens.
+  2. CamelCase is converted to CAMEL-CASE"
+  (iter (for ch in-string name)
+	(collect (cond ((and (upper-case-p ch) (not (first-iteration-p))) #\-)
+                       ((char= ch #\_) #\-)
+                       (t ch))
+          into out-string 
+          result-type string)
+        (when (and (upper-case-p ch) (not (first-iteration-p))) 
+          (collect (char-downcase ch) into out-string result-type string))
+        (finally (return (string-upcase out-string)))))
+
+(defmacro import-function (fun-name &key docstring
                                       (as (read-from-string fun-name))
                                       from)
   "Define a function which calls python
@@ -39,11 +54,11 @@ module to be imported into the python session.
                       (symbol as)
                       (t (error "AS keyword must be string or symbol")))))
     
-    (eval`(defun ,fun-symbol (&rest args)
-	    ,(or docstring "Python function")
-	    (apply #'python-call ,fun-name args)))))
+    `(defun ,fun-symbol (&rest args)
+       ,(or docstring "Python function")
+       (apply #'python-call ,fun-name args))))
 
-(defun import-module (module-name &key (as module-name as-supplied-p) (reload nil))
+(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
   "Import a python module as a Lisp package. The module name should be
 a string.
 
@@ -97,16 +112,14 @@ RELOAD specifies that the package should be deleted and reloaded.
         (*package* (make-package (string (read-from-string as))
                                  :use '())))
     (import '(cl:nil)) ; So that missing docstring is handled
-    (loop for name across fn-names
-               for fn-symbol = (read-from-string
-                                (substitute #\- #\_
-                                            name)) ; make names lispy
-               for fullname = (concatenate 'string as "."name)
-                                        ; Include module prefix
-               do (import-function fullname :as fn-symbol
-                            :docstring (python-eval (concatenate 'string
+    (append '(progn)
+            (loop for name across fn-names
+               for fn-symbol = (read-from-string (lispify-name name))
+               for fullname = (concatenate 'string as "." name) ; Include module prefix
+               append `((import-function ,fullname :as ,fn-symbol
+                            :docstring ,(python-eval (concatenate 'string
                                                                   as "." name ".__doc__")))
-		 (export fn-symbol *package*))))
+                        (export ',fn-symbol ,*package*))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
@@ -116,4 +129,3 @@ RELOAD specifies that the package should be deleted and reloaded.
                             (write-to-string
                              (object-handle function))
                             ")")))
-

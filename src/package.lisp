@@ -1,7 +1,8 @@
 ;;;; package.lisp
 
 (defpackage #:py4cl
-  (:use #:cl)
+  (:use #:cl #:iterate)
+  (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
    #:*python-command*   ; The executable to run (string)
    #:python-start
