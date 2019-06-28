@@ -66,10 +66,12 @@ Anything in ARGS which is not a string is passed through PYTHONIZE
 "
   (python-start-if-not-alive)
   (let ((stream (uiop:process-info-input *python*))
-        (str (apply #'concatenate 'string (loop for val in args
-                                             collecting (if (typep val 'string)
-                                                            val
-                                                            (pythonize val))))))
+        (str (apply #'concatenate 'string
+		    (loop for val in args
+		       collecting (if (or (not (stringp val))
+					  (realp (read-from-string val))) 
+				      (pythonize val)  ;; #C(1 0) still  escapes
+				      val)))))
     ;; Write "x" if exec, otherwise "e"
     (write-char cmd-char stream)
     (stream-write-string str stream)
