@@ -17,6 +17,15 @@
           (collect (char-downcase ch) into out-string result-type string))
         (finally (return (string-upcase out-string)))))
 
+(defun get-unique-symbol (symbol-name package-name)
+  (multiple-value-bind (symbol location)
+      (intern symbol-name package-name)
+    (if location
+	(intern (concatenate 'string
+			     symbol-name "/1")
+		package-name)
+	symbol)))
+
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
 ;; to the user.
@@ -57,7 +66,7 @@ Keywords:
     (if import-module
         (pyexec "import " pymodule-name)
         (pyexec "from " pymodule-name " import " fun-name " as " as)))
-  (let* ((fun-symbol (intern lisp-fun-name lisp-package))
+  (let* ((fun-symbol (get-unique-symbol lisp-fun-name lisp-package))
          (fullname (if (or import-module called-from-defpymodule)
                        (concatenate 'string pymodule-name "." fun-name)
                        fun-name))
