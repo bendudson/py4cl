@@ -324,6 +324,13 @@ def return_value(value):
         send_value(value)
     finally:
         sys.stdout = redirect_stream
+
+def pythonize(value):
+    """
+    Convertes the value (Symbol) to python conventioned strings.
+    In particular, replaces "-" with "_"
+    """
+    return str(value)[1:].replace('-', '_')
         
 def message_dispatch_loop():
     """
@@ -362,7 +369,7 @@ def message_dispatch_loop():
                     for arg in it:
                         if isinstance(arg, Symbol):
                             # A keyword. Take the next value
-                            kwargs[ str(arg)[1:] ] = next(it)
+                            kwargs[ pythonize(arg) ] = next(it)
                             continue
                         args.append(arg)
                 
