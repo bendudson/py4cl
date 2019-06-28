@@ -1,5 +1,11 @@
 ;;; Functions and macros for importing and exporting symbols to python
 
+;;;; Things we need to achieve - in case someone wants to attempt refactorisation
+;;; For defpyfun:
+;;;   - For convenience, we need to be able to show the function's arguments and
+;;;   default values in Slime.
+
+
 (in-package :py4cl)
 
 (declaim (ftype (function (string) string) lispify-name))
@@ -25,6 +31,21 @@
 			     symbol-name "/1")
 		package-name)
 	symbol)))
+
+(defun get-arg-list (fun-name)
+  (let* ((signature-dict
+          (pyeval "dict(inspect.signature(" fun-name ").parameters)")))
+    (iter (initially (remhash "kwargs" signature-dict))
+          (for (key val) in-hashtable signature-dict)
+          (for parameter-list =
+               (cl-utilities:split-sequence #\=
+                                            (pyeval "str(" val ")")))
+          (collect (ecase (length parameter-list)
+                     (1 (first parameter-list))
+                     (2 parameter-list)))
+          ;; (collect (list (pyeval val ".name")
+                         ;; (pyeval val ".default")))
+          )))
 
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
@@ -63,35 +84,48 @@ Keywords:
   ;; (check-type as string) ;; (or nil string)?
   (python-start-if-not-alive)
   (unless called-from-defpymodule
+    (pyexec "import inspect")
     (if import-module
         (pyexec "import " pymodule-name)
         (pyexec "from " pymodule-name " import " fun-name " as " as)))
-  (let* ((fun-symbol (get-unique-symbol lisp-fun-name lisp-package))
-         (fullname (if (or import-module called-from-defpymodule)
+  (let* ((fullname (if (or import-module called-from-defpymodule)
                        (concatenate 'string pymodule-name "." fun-name)
                        fun-name))
-         (fun-doc (pyeval fullname ".__doc__")))
-    (if (member
-         (slot-value (pyeval fullname) 'type)
-         '("<class 'function'>") ;;  "<class 'builtin_function_or_method'>"
-         :test 'string=)
-        (let* ((fun-args ;; includes all the local variables
-                (mapcar-> (pyeval fullname ".__code__.co_varnames")
-                          #'lispify-name
-                          #'intern))
-               (fun-argcount ;; to exclude the local variables
-                (pyeval fullname ".__code__.co_argcount"))
-               (arg-list (subseq fun-args 0 fun-argcount)))
-          `(progn
-             (defun ,fun-symbol (&key ,@arg-list)
-               ,(or fun-doc "Python function")
-               (funcall #'pycall ,fullname ,@arg-list))
-             (export ',fun-symbol ,lisp-package)))
-        `(progn
-           (defun ,fun-symbol (&rest args)
-             ,(or fun-doc "Python function")
-             (apply #'pycall ,fullname args))
-           (export ',fun-symbol ,lisp-package)))))
+         (fun-doc (pyeval fullname ".__doc__"))
+         (callable-type
+          (cond ((pyeval "inspect.isfunction(" fullname ")") 'function)
+                ((pyeval "inspect.isclass(" fullname ")") 'class)
+                (t t)))
+         (fun-symbol (ecase callable-type
+                       (class (intern (concatenate 'string
+                                                       lisp-fun-name "/CLASS")
+                                      lisp-package))
+                       (function (intern lisp-fun-name lisp-package))
+                       (t (get-unique-symbol lisp-fun-name lisp-package))))
+         ;; later, specialize further
+         (fun-args-with-defaults
+          (mapcar-> (get-arg-list fullname)
+                    (lambda (str-val)
+                      (etypecase str-val
+                        (string (intern (lispify-name str-val)))
+                        (list (list (intern (lispify-name (first str-val)))
+                                    (pyeval (second str-val))))))))
+         (parameter-list (if fun-args-with-defaults
+                             (cons '&key
+                                   fun-args-with-defaults)
+                             '(&rest args)))
+         (pass-list (mapcar (lambda (sym-val)
+                              (etypecase sym-val
+                                (symbol sym-val)
+                                (list (car sym-val))))
+                            fun-args-with-defaults)))
+    `(progn
+       (defun ,fun-symbol (,@parameter-list)
+              ,(or fun-doc "Python function")
+              ,(if fun-args-with-defaults
+                   `(funcall #'pycall ,fullname ,@pass-list)
+                   `(apply #'pycall ,fullname ,(cdr pass-list))))
+       (export ',fun-symbol ,lisp-package))))
 
 
 (defmacro defpysubmodules (pymodule-name as)
