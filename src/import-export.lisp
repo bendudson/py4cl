@@ -109,8 +109,8 @@ Keywords:
 (defmacro defpymodule (pymodule-name has-submodules
                        &key
                          (is-submodule nil) ;; used by defpysubmodules
-                         (as pymodule-name)
-                         (lisp-package (lispify-name as))
+                         as
+                         (lisp-package (lispify-name (or as pymodule-name)))
                          (reload nil))
   "Import a python module (and its submodules) lisp-package Lisp package(s). 
   Example:
@@ -119,7 +119,7 @@ Keywords:
 \"Package already exists.\" is returned if the package exists and :RELOAD 
 is NIL."
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
-  (check-type as string)
+  ;; (check-type as (or nil string)) ;; this doesn't work!
   (check-type lisp-package string)          
 
   (let ((package-sym (read-from-string lisp-package))) ;; reload
@@ -130,7 +130,10 @@ is NIL."
   
   (python-start-if-not-alive) ; Ensure python is running
 
-  (unless is-submodule (pyexec "import " pymodule-name " as " as))
+  (unless is-submodule
+    (if as
+        (pyexec "import " pymodule-name " as " as)
+        (pyexec "import " pymodule-name)))
 
   (pyexec "import inspect")
   (pyexec "import pkgutil")
