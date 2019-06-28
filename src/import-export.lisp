@@ -51,7 +51,7 @@ Keywords:
   (check-type lisp-fun-name string)
   (check-type lisp-package package)
   (check-type pymodule-name string)
-  (check-type as string)
+  ;; (check-type as string) ;; (or nil string)?
   (python-start-if-not-alive)
   (unless called-from-defpymodule
     (if import-module
@@ -121,7 +121,6 @@ is NIL."
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
   ;; (check-type as (or nil string)) ;; this doesn't work!
   (check-type lisp-package string)          
-
   (let ((package-sym (read-from-string lisp-package))) ;; reload
     (if (find-package package-sym)
         (if reload 
@@ -129,7 +128,6 @@ is NIL."
             (return-from defpymodule "Package already exists."))))
   
   (python-start-if-not-alive) ; Ensure python is running
-
   (unless is-submodule
     (if as
         (pyexec "import " pymodule-name " as " as)
@@ -140,7 +138,7 @@ is NIL."
   
   ;; fn-names  All callables whose names don't start with "_" 
   (let ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
-                           as
+                           (or as pymodule-name)
                            ", callable) if name[0] != '_']"))
         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
         ;; so that the result reflects changes to the readtable
@@ -153,9 +151,9 @@ is NIL."
             ;; (format t "Submodules imported!~%")
             (iter (for fun-name in-vector fun-names)
                   (collect (macroexpand `(defpyfun
-                                             ,fun-name ,as
-                                             :lisp-package ,exporting-package
-                                             :called-from-defpymodule t)))))))
+					     ,fun-name ,(or as pymodule-name)
+					   :lisp-package ,exporting-package
+					   :called-from-defpymodule t)))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
