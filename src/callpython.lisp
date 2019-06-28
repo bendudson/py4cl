@@ -69,7 +69,8 @@ Anything in ARGS which is not a string is passed through PYTHONIZE
         (str (apply #'concatenate 'string
 		    (loop for val in args
 		       collecting (if (or (not (stringp val))
-					  (realp (read-from-string val))) 
+					  (realp (ignore-errors
+						   (read-from-string val)))) 
 				      (pythonize val)  ;; #C(1 0) still  escapes
 				      val)))))
     ;; Write "x" if exec, otherwise "e"
@@ -167,7 +168,11 @@ Examples:
   (python-start-if-not-alive)
   (py4cl:pyeval
    (py4cl::pythonize obj)
-   (format nil ".~(~a~)" method-name)
+   (iter (for char in-string (format nil ".~(~a~)" method-name))
+	 (collect (if (char= char #\-)
+		      #\_
+		      char)
+	   result-type string))
    (if args 
        (py4cl::pythonize args)
        "()")))
