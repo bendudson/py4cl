@@ -166,16 +166,15 @@ Examples:
   ; => 3
 "
   (python-start-if-not-alive)
-  (py4cl:pyeval
-   (py4cl::pythonize obj)
-   (iter (for char in-string (format nil ".~(~a~)" method-name))
-	 (collect (if (char= char #\-)
-		      #\_
-		      char)
-	   result-type string))
-   (if args 
-       (py4cl::pythonize args)
-       "()")))
+  (apply #'pycall
+	 (concatenate 'string
+		      (pythonize obj)
+		      (iter (for char in-string (format nil ".~(~a~)" method-name))
+			    (collect (if (char= char #\-)
+					 #\_
+					 char)
+			      result-type string)))
+	 args))
 
 (defun function-args (args)
   "Internal function, intended to be called by the CHAIN macro.
