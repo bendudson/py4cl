@@ -38,9 +38,11 @@
     (unless signature-dict (return-from get-arg-list signature-dict))
     (iter (initially (remhash "kwargs" signature-dict)
 		     (remhash "args" signature-dict))
-		 (for (key val) in-hashtable signature-dict)
-		 (collect (list (pyeval val ".name")
-				(pyeval val ".default"))))))
+	  (for (key val) in-hashtable signature-dict)
+          (for name = (pyeval val ".name"))
+          (when (some #'upper-case-p name) (return-from get-arg-list '()))
+          (for default = (pyeval val ".default"))
+	  (collect (list name default)))))
 
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
