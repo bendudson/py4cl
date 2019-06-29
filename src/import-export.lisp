@@ -35,17 +35,11 @@
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
           (pyeval "dict(inspect.signature(" fun-name ").parameters)")))
-    (iter (initially (remhash "kwargs" signature-dict))
-          (for (key val) in-hashtable signature-dict)
-          (for parameter-list =
-               (cl-utilities:split-sequence #\=
-                                            (pyeval "str(" val ")")))
-          (collect (ecase (length parameter-list)
-                     (1 (first parameter-list))
-                     (2 parameter-list)))
-          ;; (collect (list (pyeval val ".name")
-                         ;; (pyeval val ".default")))
-          )))
+    (iter (initially (remhash "kwargs" signature-dict)
+		     (remhash "args" signature-dict))
+		 (for (key val) in-hashtable signature-dict)
+		 (collect (list (pyeval val ".name")
+				(pyeval val ".default"))))))
 
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
@@ -106,25 +100,23 @@ Keywords:
          (fun-args-with-defaults
           (mapcar-> (get-arg-list fullname)
                     (lambda (str-val)
-                      (etypecase str-val
-                        (string (intern (lispify-name str-val)))
-                        (list (list (intern (lispify-name (first str-val)))
-                                    (pyeval (second str-val))))))))
+                      (list (intern (lispify-name (first str-val)) lisp-package)
+                            (if (listp (second str-val))
+				`',(second str-val)
+				;; to avoid being interpreted as a function
+				;; are there other cases this misses out?
+				(second str-val))))))
          (parameter-list (if fun-args-with-defaults
                              (cons '&key
                                    fun-args-with-defaults)
                              '(&rest args)))
-         (pass-list (mapcar (lambda (sym-val)
-                              (etypecase sym-val
-                                (symbol sym-val)
-                                (list (car sym-val))))
-                            fun-args-with-defaults)))
+         (pass-list (mapcar #'car fun-args-with-defaults)))
     `(progn
        (defun ,fun-symbol (,@parameter-list)
               ,(or fun-doc "Python function")
               ,(if fun-args-with-defaults
                    `(funcall #'pycall ,fullname ,@pass-list)
-                   `(apply #'pycall ,fullname ,(cdr pass-list))))
+                   `(apply #'pycall ,fullname args)))
        (export ',fun-symbol ,lisp-package))))
 
 
@@ -132,16 +124,14 @@ Keywords:
   (let ((submodules
          (py4cl:pyeval "[(modname, ispkg) for importer, modname, ispkg in "
                        "pkgutil.iter_modules("
-                       as
+                       (or as pymodule-name)
                        ".__path__)]")))
     (iter (for (submodule has-submodules) in-vector submodules)
           (collect `(defpymodule ,(concatenate 'string
                                                pymodule-name "." submodule)
                         ,has-submodules
-                      :as ,(concatenate 'string as "." submodule)
+                      :as ,(when as (concatenate 'string as "." submodule))
                       :is-submodule t)))))
-
-
 
 (defun mapcar-> (list &rest functions)
   "Applies FUNCTIONS successively to LIST."
@@ -163,11 +153,11 @@ Keywords:
 is NIL."
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
   ;; (check-type as (or nil string)) ;; this doesn't work!
-  (check-type lisp-package string)          
-  (let ((package-sym (read-from-string lisp-package))) ;; reload
-    (if (find-package package-sym)
+  (check-type lisp-package string)
+  (let ((package (find-package lisp-package))) ;; reload
+    (if package
         (if reload 
-            (delete-package package-sym)
+            (delete-package package)
             (return-from defpymodule "Package already exists."))))
   
   (python-start-if-not-alive) ; Ensure python is running
@@ -187,16 +177,18 @@ is NIL."
         ;; so that the result reflects changes to the readtable
         ;; Note that the package doesn't use CL to avoid shadowing
         (exporting-package (make-package lisp-package :use '())))
-    ;; (format t "Package created!~%")
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
             (if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
-            ;; (format t "Submodules imported!~%")
             (iter (for fun-name in-vector fun-names)
                   (collect (macroexpand `(defpyfun
 					     ,fun-name ,(or as pymodule-name)
 					   :lisp-package ,exporting-package
-					   :called-from-defpymodule t)))))))
+					   :called-from-defpymodule t))))
+	    (unless is-submodule
+	      ;; Several symbols are introduced "somewhere" that are not functions
+	      `((cl:mapc #'unintern (apropos-list,lisp-package))
+		t))))) 
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"

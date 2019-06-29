@@ -10,6 +10,7 @@ from __future__ import print_function
 import sys
 import numbers
 import itertools
+import inspect
 
 try:
     from io import StringIO # Python 3
@@ -143,7 +144,8 @@ python_to_lisp_type = {
   complex: "COMPLEX",
   list: "VECTOR",
   dict: "HASH-TABLE",
-  str: "STRING"
+  str: "STRING",
+  inspect._empty: "NIL"
 }
     
 ##################################################################
