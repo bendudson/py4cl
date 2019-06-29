@@ -34,7 +34,8 @@
 
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
-          (pyeval "dict(inspect.signature(" fun-name ").parameters)")))
+          (restart-case (pyeval "dict(inspect.signature(" fun-name ").parameters)")
+	    (return-nil-and-continue () (make-hash-table :test 'equal)))))
     (iter (initially (remhash "kwargs" signature-dict)
 		     (remhash "args" signature-dict))
 		 (for (key val) in-hashtable signature-dict)
