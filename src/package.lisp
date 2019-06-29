@@ -24,6 +24,7 @@
   (:export ; import-export
    #:defpyfun
    #:defpymodule
+   #:defpyfuns
    #:export-function)
   (:export ; lisp-classes
    #:python-getattr))

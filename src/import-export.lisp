@@ -4,6 +4,8 @@
 ;;; For defpyfun:
 ;;;   - For convenience, we need to be able to show the function's arguments and
 ;;;   default values in Slime.
+;;;   - For customizability, we ought to be able to load some "config" file
+;;;   containing name, signature, documentation, call method for some functions.
 
 
 (in-package :py4cl)
@@ -27,22 +29,22 @@
   (multiple-value-bind (symbol location)
       (intern symbol-name package-name)
     (if location
-	(intern (concatenate 'string
-			     symbol-name "/1")
-		package-name)
-	symbol)))
+        (intern (concatenate 'string
+                             symbol-name "/1")
+                package-name)
+        symbol)))
 
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
-	  (ignore-errors (pyeval "dict(inspect.signature(" fun-name ").parameters)"))))
+          (ignore-errors (pyeval "dict(inspect.signature(" fun-name ").parameters)"))))
     (unless signature-dict (return-from get-arg-list signature-dict))
     (iter (initially (remhash "kwargs" signature-dict)
-		     (remhash "args" signature-dict))
-	  (for (key val) in-hashtable signature-dict)
+                     (remhash "args" signature-dict))
+          (for (key val) in-hashtable signature-dict)
           (for name = (pyeval val ".name"))
           (when (some #'upper-case-p name) (return-from get-arg-list '()))
           (for default = (pyeval val ".default"))
-	  (collect (list name default)))))
+          (collect (list name default)))))
 
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
@@ -105,10 +107,10 @@ Keywords:
                     (lambda (str-val)
                       (list (intern (lispify-name (first str-val)) lisp-package)
                             (if (listp (second str-val))
-				`',(second str-val)
-				;; to avoid being interpreted as a function
-				;; are there other cases this misses out?
-				(second str-val))))))
+                                `',(second str-val)
+                                ;; to avoid being interpreted as a function
+                                ;; are there other cases this misses out?
+                                (second str-val))))))
          (parameter-list (if fun-args-with-defaults
                              (cons '&key
                                    fun-args-with-defaults)
@@ -185,13 +187,31 @@ is NIL."
             (if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
             (iter (for fun-name in-vector fun-names)
                   (collect (macroexpand `(defpyfun
-					     ,fun-name ,(or as pymodule-name)
-					   :lisp-package ,exporting-package
-					   :called-from-defpymodule t))))
-	    (unless is-submodule
-	      ;; Several symbols are introduced "somewhere" that are not functions
-	      `((cl:mapc #'unintern (apropos-list,lisp-package))
-		t))))) 
+                                             ,fun-name ,(or as pymodule-name)
+                                           :lisp-package ,exporting-package
+                                           :called-from-defpymodule t))))
+            (unless is-submodule
+              ;; Several symbols are introduced "somewhere" that are not functions
+              `((cl:mapc #'unintern (apropos-list,lisp-package))
+                t)))))
+
+(defmacro defpyfuns (&rest args)
+  "Each ARG is supposed to be a 2-3 element list of 
+ (pyfun-name pymodule-name) or (pyfun-name pymodule-name lisp-fun-name).
+In addition, when ARG is a 2-element list, then, the first element can be
+a list of python function names. "
+  `(progn
+     ,@(iter outer
+         (for arg-list in args)
+         (ecase (length arg-list)
+           (2 (etypecase (first arg-list)
+                (list (iter
+                        (for pyfun-name in (first arg-list))
+                        (in outer (collect `(defpyfun ,pyfun-name
+                                                ,(second arg-list))))))
+                (string (collect `(defpyfun ,@arg-list)))))
+           (3 (collect `(defpyfun ,(first arg-list) ,(second arg-list)
+                          :lisp-fun-name ,(third arg-list))))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
