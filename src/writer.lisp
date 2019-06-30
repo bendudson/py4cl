@@ -102,15 +102,26 @@ evals a list with a single element as a tuple
   (write-to-string (coerce obj '(vector character))
                    :escape t :readably t))
 
+(defvar *lisp-to-python-types-alist*
+  '((t "True")
+    (nil "None")
+    (float "float")
+    (boolean "bool")
+    (null "type(None)")
+    (integer "int")
+    (complex "complex")
+    (vector "list")
+    (hash-table "dict")
+    (string "str")))
+;; leaves out inspect._empty    
+
 (defmethod pythonize ((obj symbol))
   "Handle symbols. Need to handle NIL,
 converting it to Python None, and convert T to True."
-  (if obj
-      (if (eq obj t)
-          "True"
-          (concatenate 'string
-                       "_py4cl_Symbol(':" (string-downcase (string obj)) "')"))
-      "None"))
+  (if (assoc obj *lisp-to-python-types-alist*)
+      (second (assoc obj *lisp-to-python-types-alist*))
+       (concatenate 'string
+		    "_py4cl_Symbol(':" (string-downcase (string obj)) "')")))
 
 (defmethod pythonize ((obj hash-table))
   "Convert hash-table to python map.

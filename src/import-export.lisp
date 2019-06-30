@@ -28,11 +28,11 @@
 (defun get-unique-symbol (symbol-name package-name)
   (multiple-value-bind (symbol location)
       (intern symbol-name package-name)
+    (declare (ignore symbol))
     (if location
-        (intern (concatenate 'string
-                             symbol-name "/1")
-                package-name)
-        symbol)))
+        (concatenate 'string
+                     symbol-name "/1")
+        symbol-name)))
 
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
@@ -63,7 +63,8 @@
                       (import-module nil) ; see above
                       (lisp-fun-name (lispify-name as))
                       (lisp-package *package*)
-                      (called-from-defpymodule nil))
+                      (called-from-defpymodule nil)
+                      (rename-lisp-fun-name nil))
   "Defines a function which calls python
 Example
   (py4cl:pyexec \"import math\")
@@ -96,17 +97,22 @@ Keywords:
                 ((pyeval "inspect.isclass(" fullname ")") 'class)
                 (t t)))
          (fun-symbol (ecase callable-type
-                       (class (intern (concatenate 'string
+                       (class (intern (if (or rename-lisp-fun-name
+					      called-from-defpymodule)
+                                          (concatenate 'string
                                                        lisp-fun-name "/CLASS")
+                                          lisp-fun-name)
                                       lisp-package))
                        (function (intern lisp-fun-name lisp-package))
-                       (t (get-unique-symbol lisp-fun-name lisp-package))))
+                       (t (intern (get-unique-symbol lisp-fun-name lisp-package)
+				  lisp-package))))
          ;; later, specialize further
+         (raw-arg-list (get-arg-list fullname))
          (fun-args-with-defaults
-          (mapcar-> (get-arg-list fullname)
+          (mapcar-> raw-arg-list
                     (lambda (str-val)
                       (list (intern (lispify-name (first str-val)) lisp-package)
-                            (if (listp (second str-val))
+                            (if (or (symbolp (second str-val)) (listp (second str-val)))
                                 `',(second str-val)
                                 ;; to avoid being interpreted as a function
                                 ;; are there other cases this misses out?
@@ -115,7 +121,10 @@ Keywords:
                              (cons '&key
                                    fun-args-with-defaults)
                              '(&rest args)))
-         (pass-list (mapcar #'car fun-args-with-defaults)))
+         (pass-list (iter (for (actual-value-symbol _) in fun-args-with-defaults)
+                          (for (name __) in raw-arg-list)
+                          (collect (intern (lispify-name name) :keyword))
+                          (collect actual-value-symbol))))
     `(progn
        (defun ,fun-symbol (,@parameter-list)
               ,(or fun-doc "Python function")
