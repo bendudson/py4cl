@@ -27,4 +27,8 @@
    #:defpyfuns
    #:export-function)
   (:export ; lisp-classes
-   #:python-getattr))
+   #:python-getattr)
+  (:export ; writer
+   #:set-numpy-pickle-location
+   #:set-numpy-pickle-lower-bound
+   #:save-or-load-numpy-pickle-parameters))

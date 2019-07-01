@@ -179,12 +179,20 @@ try:
     # Use NumPy for multi-dimensional arrays
     import numpy
 
+    eval_globals["_py4cl_numpy_pickle_lower_bound"] = 100000
+    eval_globals["_py4cl_numpy_pickle_location"] = "/home/shubhamkar/ram-disk/._py4cl_numpy.npy"
+    
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
         array([[1, 2],     => '#2A((1 2) (3 4))'
               [3, 4]])
         """
+        if obj.size > eval_globals["_py4cl_numpy_pickle_lower_bound"]:
+          numpy_pickle_location = eval_globals["_py4cl_numpy_pickle_location"]
+          numpy.save(numpy_pickle_location, obj, allow_pickle = True)
+          return ('#.(numpy-file-format:load-array "'
+                  + numpy_pickle_location + '")')
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))

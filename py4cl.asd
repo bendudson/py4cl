@@ -5,7 +5,7 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ("trivial-garbage" "iterate")
+  :depends-on ("trivial-garbage" "iterate" "numpy-file-format")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
@@ -14,7 +14,8 @@
                (:file "python-process")
                (:file "lisp-classes")
                (:file "callpython")
-               (:file "import-export"))
+               (:file "import-export")
+	       (:file "do-after-load"))
   :in-order-to ((test-op (test-op "py4cl/tests"))))
 
 ;; This is to store the path to the source code
