@@ -1,0 +1,16 @@
+* Urgent
+- communication *numpy-pickle- variables to python process on pystart
+- asking user to set up python process on first installation - may
+  be, make a 'initialize function
+- checking what happens when output is "asynchronous" - say, when
+  model.fit of keras is called
+- being able to pass python generators
+- more documentation (quite done; not committed)
+
+* Optional
+- importing arguments for more callable objects - like ufunc of numpy
+- importing python classes, and methods, may be, as subclasses 
+  of 'python-object
+
+* For Release 
+- review and may be, add tests
