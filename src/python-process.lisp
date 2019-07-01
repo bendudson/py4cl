@@ -2,7 +2,7 @@
 
 (in-package :py4cl)
 
-(defvar *pycmd* "python"
+(defvar *pycmd* "python3"
   "String, the Python executable to launch
 e.g. \"python\" or \"python3\"")
 
@@ -51,22 +51,15 @@ If still not alive, raises a condition."
 (declaim (ftype (function () t) clear-lisp-objects))
 
 (defun pystop (&optional (process *python*))
-  ;; If python is not running then return
+  "Stop (Quit) the python process PROCESS"
   (unless (python-alive-p process)
     (return-from pystop))
-
-  ;; First ask python subprocess to quit
-  ;; Could give it a few seconds to close nicely
   (let ((stream (uiop:process-info-input process)))
+    ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
-  ;; Close input, output streams
   (uiop:close-streams process)
-  ;; Terminate
   (uiop:terminate-process process)
-  ;; Mark as not alive
-  (setf *python* nil)
-
-  ;; Clear lisp objects
+  (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
 
 (defun pyversion-info ()

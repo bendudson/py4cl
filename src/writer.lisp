@@ -20,6 +20,7 @@ since corresponding changes are required to be made in the python process.")
   "Set *NUMPY-ARRAY-LOCATION* to PATHNAME, and makes corresponding changes in
 python process. (Default /tmp/_numpy_pickle.npy. For persistent change, call
 SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
+  (python-start-if-not-alive)
   (when (string= "" pathname-as-string)
     (setq pathname-as-string "/tmp/_numpy_pickle.npy"))
   (setq *numpy-pickle-location* pathname-as-string)
@@ -30,9 +31,11 @@ SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
   "Set *NUMPY-PICKLE-LOWER-BOUND* to BOUND, and makes corresponding changes 
 in python process. (Default 10000.) For persistent change, call
 SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
+  (python-start-if-not-alive)  
   (unless bound (setq bound 100000))
   (setq *numpy-pickle-lower-bound* bound)
   (pyexec "_py4cl_numpy_pickle_lower_bound = " bound))
+
 
 (defun save-or-load-numpy-pickle-parameters (&optional savep)
   (let ((config-path (concatenate 'string
@@ -42,9 +45,9 @@ SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
         (if savep
             (with-open-file (f config-path :direction :output :if-exists :supersede
                                :if-does-not-exist :create) 
-              (write *numpy-pickle-location* :stream f)
+              (write-string *numpy-pickle-location* f)
               (terpri f)
-              (write *numpy-pickle-lower-bound* :stream f)
+              (write-string (write-to-string *numpy-pickle-lower-bound*) f)
               (terpri f))
             (with-open-file (f config-path)
               (set-numpy-pickle-location (read-line f))
@@ -63,9 +66,9 @@ SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
           (set-numpy-pickle-lower-bound (parse-integer (read-line) :junk-allowed t))
           (with-open-file (f config-path :direction :output :if-exists :supersede
                              :if-does-not-exist :create) 
-            (write *numpy-pickle-location* :stream f)
+            (write-string *numpy-pickle-location* f)
             (terpri f)
-            (write *numpy-pickle-lower-bound* :stream f)
+            (write-string *numpy-pickle-lower-bound* f)
             (terpri f))
           (format t "This configuration is saved to ~D.~%" config-path)))))
 
