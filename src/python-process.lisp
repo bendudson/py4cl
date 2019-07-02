@@ -2,10 +2,6 @@
 
 (in-package :py4cl)
 
-(defvar *pycmd* "python3"
-  "String, the Python executable to launch
-e.g. \"python\" or \"python3\"")
-
 (defvar *python* nil
   "Most recently started python subprocess")
 
@@ -14,13 +10,15 @@ e.g. \"python\" or \"python3\"")
 is used to prevent garbage collection from deleting objects in the wrong
 python session")
 
-(defun pystart (&optional (command *pycmd*))
+(defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
 in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
+  (format t "Launching ~D ~D...~%" command
+	  (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
   (setf *python*
         (uiop:launch-program
          (concatenate 'string

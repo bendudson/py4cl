@@ -2,5 +2,9 @@
 ;;; this file should be called after loading all the other files
 
 (in-package :py4cl)
-(py4cl::save-or-load-numpy-pickle-parameters)
-
+(let ((config-path (concatenate 'string
+                                (directory-namestring py4cl/config:*base-directory*)
+                                ".config"))
+      (cl-json:*json-symbols-package* *package*))
+  (when (uiop:file-exists-p config-path)
+    (load-config)))

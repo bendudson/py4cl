@@ -11,7 +11,16 @@ import sys
 import numbers
 import itertools
 import inspect
+import json
+import os
 
+config = {}
+def load_config():
+    with open(os.path.dirname(__file__) + "/.config") as conf:
+        global config
+        config = json.load(conf)
+load_config()
+        
 try:
     from io import StringIO # Python 3
 except:
@@ -128,7 +137,7 @@ class UnknownLispObject (object):
         return message_dispatch_loop()
         
 # These store the environment used when eval'ing strings from Lisp
-eval_globals = {}
+eval_globals = {"_py4cl_load_config": load_config}
 eval_locals = {}
 
 # Settings
@@ -170,6 +179,7 @@ lispifiers = {
     type       : lambda x: python_to_lisp_type[x],
     Symbol     : str,
     UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
+    # there's another lispifier just below
 }
 
 # This is used to test if a value is a numeric type
@@ -179,20 +189,17 @@ try:
     # Use NumPy for multi-dimensional arrays
     import numpy
 
-    eval_globals["_py4cl_numpy_pickle_lower_bound"] = 100000
-    eval_globals["_py4cl_numpy_pickle_location"] = "/home/shubhamkar/ram-disk/._py4cl_numpy.npy"
-    
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
         array([[1, 2],     => '#2A((1 2) (3 4))'
               [3, 4]])
         """
-        if obj.size > eval_globals["_py4cl_numpy_pickle_lower_bound"]:
-          numpy_pickle_location = eval_globals["_py4cl_numpy_pickle_location"]
-          numpy.save(numpy_pickle_location, obj, allow_pickle = True)
-          return ('#.(numpy-file-format:load-array "'
-                  + numpy_pickle_location + '")')
+        if obj.size > config["numpyPickleLowerBound"]:
+            numpy_pickle_location = config["numpyPickleLocation"]
+            numpy.save(numpy_pickle_location, obj, allow_pickle = True)
+            return ('#.(numpy-file-format:load-array "'
+                    + numpy_pickle_location + '")')
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))

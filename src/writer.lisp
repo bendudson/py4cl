@@ -10,69 +10,6 @@
 
 (defvar *lisp-objects* (make-hash-table :test #'eql))
 
-(defvar *numpy-pickle-location* nil
-  "Preferably set this to a ramdisk. Set this using SET-NUMPY-ARRAY-LOCATION, 
-since corresponding changes are required to be made in the python process.")
-(defvar *numpy-pickle-lower-bound* nil)
-
-(declaim (ftype (function (string)) set-numpy-array-location))
-(defun set-numpy-pickle-location (pathname-as-string)
-  "Set *NUMPY-ARRAY-LOCATION* to PATHNAME, and makes corresponding changes in
-python process. (Default /tmp/_numpy_pickle.npy. For persistent change, call
-SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
-  (python-start-if-not-alive)
-  (when (string= "" pathname-as-string)
-    (setq pathname-as-string "/tmp/_numpy_pickle.npy"))
-  (setq *numpy-pickle-location* pathname-as-string)
-  (pyexec "_py4cl_numpy_pickle_location = " (write-to-string pathname-as-string)))
-
-(declaim (ftype (function ((or integer nil))) set-numpy-pickle-lower-bound))
-(defun set-numpy-pickle-lower-bound (bound)
-  "Set *NUMPY-PICKLE-LOWER-BOUND* to BOUND, and makes corresponding changes 
-in python process. (Default 10000.) For persistent change, call
-SAVE-OR-LOAD-NUMPY-PICKLE-PARAMETERS with T."
-  (python-start-if-not-alive)  
-  (unless bound (setq bound 100000))
-  (setq *numpy-pickle-lower-bound* bound)
-  (pyexec "_py4cl_numpy_pickle_lower_bound = " bound))
-
-
-(defun save-or-load-numpy-pickle-parameters (&optional savep)
-  (let ((config-path (concatenate 'string
-                                  (directory-namestring py4cl/config:*base-directory*)
-                                  ".config")))
-    (if (uiop:file-exists-p config-path) ;; on first ever call
-        (if savep
-            (with-open-file (f config-path :direction :output :if-exists :supersede
-                               :if-does-not-exist :create) 
-              (write-string *numpy-pickle-location* f)
-              (terpri f)
-              (write-string (write-to-string *numpy-pickle-lower-bound*) f)
-              (terpri f))
-            (with-open-file (f config-path)
-              (set-numpy-pickle-location (read-line f))
-              (set-numpy-pickle-lower-bound (read f))))
-        (progn
-          (terpri)
-          (format t " PY4CL uses pickled files to transfer large arrays between lisp
- and python efficiently. These are expected to have sizes exceeding 100MB 
- (this depends on the value of *NUMPY-PICKLE-LOWER-BOUND*). Therefore, choose an 
- appropriate location (*NUMPY-PICKLE-LOCATION*) for storing these arrays on disk.~%")
-          (format t "Enter location for storage (default /tmp/_numpy_pickle.npy): ")
-          (force-output)
-          (set-numpy-pickle-location (read-line))
-          (format t "Enter lower bound for using pickling (default 100000): ")
-          (force-output)
-          (set-numpy-pickle-lower-bound (parse-integer (read-line) :junk-allowed t))
-          (with-open-file (f config-path :direction :output :if-exists :supersede
-                             :if-does-not-exist :create) 
-            (write-string *numpy-pickle-location* f)
-            (terpri f)
-            (write-string *numpy-pickle-lower-bound* f)
-            (terpri f))
-          (format t "This configuration is saved to ~D.~%" config-path)))))
-
-
 (defun clear-lisp-objects ()
   "Clear the *lisp-objects* object store, allowing them to be GC'd"
   (setf *lisp-objects* (make-hash-table :test #'eql)
@@ -129,10 +66,11 @@ which is interpreted correctly by python (3.7.2)."
                "j)"))
 
 (defmethod pythonize ((obj array))
-  (when (> (array-total-size obj) *numpy-pickle-lower-bound*)
-    (numpy-file-format:store-array obj *numpy-pickle-location*)
+  (when (> (array-total-size obj)
+	   (config-var 'numpy-pickle-lower-bound))
+    (numpy-file-format:store-array obj (config-var 'numpy-pickle-location))
     (return-from pythonize
-      (concatenate 'string "_py4cl_numpy.load('" *numpy-pickle-location*
+      (concatenate 'string "_py4cl_numpy.load('" (config-var 'numpy-pickle-location)
                    "', allow_pickle = True)")))
   
   ;; Handle case of empty array

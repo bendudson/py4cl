@@ -5,10 +5,11 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ("trivial-garbage" "iterate" "numpy-file-format")
+  :depends-on ("trivial-garbage" "iterate" "numpy-file-format" "cl-json")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
+	       (:file "config")
                (:file "reader")
                (:file "writer")
                (:file "python-process")
