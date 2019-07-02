@@ -1,7 +1,4 @@
 * Urgent
-- communication *numpy-pickle- variables to python process on pystart
-- asking user to set up python process on first installation - may
-  be, make a 'initialize function
 - checking what happens when output is "asynchronous" - say, when
   model.fit of keras is called
 - being able to pass python generators

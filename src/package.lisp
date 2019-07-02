@@ -1,10 +1,10 @@
+
 ;;;; package.lisp
 
 (defpackage #:py4cl
   (:use #:cl #:iterate)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
-   #:*pycmd*   ; The executable to run (string)
    #:pystart
    #:pystop
    #:python-alive-p
@@ -28,7 +28,9 @@
    #:export-function)
   (:export ; lisp-classes
    #:python-getattr)
-  (:export ; writer
-   #:set-numpy-pickle-location
-   #:set-numpy-pickle-lower-bound
-   #:save-or-load-numpy-pickle-parameters))
+  (:export ; config
+   #:*config*
+   #:initialize
+   #:save-config
+   #:load-config
+   #:config-var))
