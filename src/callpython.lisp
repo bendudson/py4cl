@@ -65,6 +65,7 @@ in the two cases.
 Anything in ARGS which is not a string is passed through PYTHONIZE
 "
   (python-start-if-not-alive)
+  (delete-numpy-pickle-arrays)
   (let ((stream (uiop:process-info-input *python*))
         (str (apply #'concatenate 'string
 		    (loop for val in args
@@ -119,6 +120,7 @@ This is used for statements rather than expressions.
   "Call a python function, given the function name as a string
 and additional arguments. Keywords are converted to keyword arguments."
   (python-start-if-not-alive)
+  (delete-numpy-pickle-arrays)
   (let ((stream (uiop:process-info-input *python*)))
     ;; Write "f" to indicate function call
     (write-char #\f stream)
@@ -236,6 +238,7 @@ Examples:
      => \"o\"
 "
   (python-start-if-not-alive)
+  (delete-numpy-pickle-arrays)
   `(py4cl:pyeval
     ;; TARGET 
     ,@(if (consp target)

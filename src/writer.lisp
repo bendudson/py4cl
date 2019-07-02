@@ -65,13 +65,20 @@ which is interpreted correctly by python (3.7.2)."
                (write-to-string (imagpart obj))
                "j)"))
 
+(defvar *numpy-pickle-index* 0
+  "Used for transferring multiple numpy-pickled arrays in one pyeval/exec/etc")
+;; this is incremented by pythonize and reset to 0 at the beginning of
+;; every pyeval*/pycall from delete-numpy-pickle-arrays in reader.lisp
 (defmethod pythonize ((obj array))
   (when (> (array-total-size obj)
 	   (config-var 'numpy-pickle-lower-bound))
-    (numpy-file-format:store-array obj (config-var 'numpy-pickle-location))
-    (return-from pythonize
-      (concatenate 'string "_py4cl_numpy.load('" (config-var 'numpy-pickle-location)
-                   "', allow_pickle = True)")))
+    (let ((filename (concatenate 'string
+				 (config-var 'numpy-pickle-location)
+				 "." (write-to-string (incf *numpy-pickle-index*)))))
+      (numpy-file-format:store-array obj filename)
+      (return-from pythonize
+	(concatenate 'string "_py4cl_load_pickled_ndarray_and_delete('"
+		     filename"')"))))
   
   ;; Handle case of empty array
   (if (= (array-total-size obj) 0)

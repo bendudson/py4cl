@@ -189,6 +189,11 @@ try:
     # Use NumPy for multi-dimensional arrays
     import numpy
 
+    def load_pickled_ndarray_and_delete(filename):
+        arr = numpy.load(filename, allow_pickle = True)
+        os.remove(filename)
+        return arr
+
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
@@ -217,6 +222,8 @@ try:
 
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays
     eval_globals["_py4cl_numpy"] = numpy
+    eval_globals["_py4cl_load_pickled_ndarray_and_delete"] \
+      = load_pickled_ndarray_and_delete
 
     # Register numeric base class
     numeric_base_classes += (numpy.number,)
