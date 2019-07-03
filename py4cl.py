@@ -381,48 +381,72 @@ def message_dispatch_loop():
                 result = eval(recv_string(), eval_globals, eval_locals)
                 return_value(result)
             
-            elif cmd_type == "f" or cmd_type == "a": # Function call
-                # Get a tuple (function, allargs)
-                fn_name, allargs = recv_value()
+            elif cmd_type == "f" or cmd_type == "a" or cmd_type == "m": # Function call
+                try:
+                    # Get a tuple (function, allargs)
+                    fn_name, allargs = recv_value()
 
-                # Split positional arguments and keywords
-                args = []
-                kwargs = {}
-                if allargs:
-                    it = iter(allargs) # Use iterator so we can skip values
-                    for arg in it:
-                        if isinstance(arg, Symbol):
-                            # A keyword. Take the next value
-                            kwargs[ pythonize(arg) ] = next(it)
-                            continue
-                        args.append(arg)
-                
-                # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
-                if callable(fn_name):
-                    function = fn_name # Already callable
-                else:
-                    function = eval(fn_name, eval_globals, eval_locals)
-                if cmd_type == "f":
-                    # Run function then return value
-                    return_value( function(*args, **kwargs) )
-                else:
-                    # Asynchronous
+                    # Split positional arguments and keywords
+                    args = []
+                    kwargs = {}
+                    if allargs:
+                        it = iter(allargs) # Use iterator so we can skip values
+                        for arg in it:
+                            if isinstance(arg, Symbol):
+                                # A keyword. Take the next value
+                                kwargs[ pythonize(arg) ] = next(it)
+                                continue
+                            args.append(arg)
 
-                    # Get a handle, and send back to caller.
-                    # The handle can be used to fetch
-                    # the result using an "R" message.
-                    
-                    handle = next(async_handle)
-                    return_value(handle)
+                    # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
+                    if callable(fn_name):
+                        function = fn_name # Already callable
+                    else:
+                        function = eval(fn_name, eval_globals, eval_locals)
 
-                    try:
-                        # Run function, store result
-                        async_results[handle] = function(*args, **kwargs)
-                    except Exception as e:
-                        # Catching error here so it can
-                        # be stored as the return value
-                        async_results[handle] = e
-    
+                    if cmd_type == "m":
+                        old_stdout = sys.stdout
+                        try:
+                            sys.stdout = write_stream # the original outgoing stdout
+                            rv = function(*args, **kwargs)
+                            sys.stdout.write("\n_py4cl_monitor_end\n")
+                            sys.stdout.flush()
+                            sys.stdout = old_stdout
+                            return_value(rv)
+                        except Exception as e:
+                            sys.stdout = old_stdout
+                            raise e
+                    elif cmd_type == "f":
+                        # Run function then return value
+                        return_value( function(*args, **kwargs) )
+                    else:
+                        # Asynchronous
+
+                        # Get a handle, and send back to caller.
+                        # The handle can be used to fetch
+                        # the result using an "R" message.
+
+                        handle = next(async_handle)
+                        return_value(handle)
+
+                        try:
+                            # Run function, store result
+                            async_results[handle] = function(*args, **kwargs)
+                        except Exception as e:
+                            # Catching error here so it can
+                            # be stored as the return value
+                            async_results[handle] = e
+                except Exception as e:
+                    if cmd_type == "m":
+                        # Do we need to replicate the return_error as is?
+                        # The handles in particular?
+                        sys.stdout = write_stream
+                        sys.stdout.write("\n_py4cl_monitor_error\n")
+                        sys.stdout.flush()
+                        send_value(str(e))
+                        sys.stdout = redirect_stream
+                    else:
+                        raise e
             elif cmd_type == "O":  # Return only handles
                 return_values += 1
 
@@ -456,7 +480,7 @@ def message_dispatch_loop():
             elif cmd_type == "x": # Execute a statement
                 exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
-                
+
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
 

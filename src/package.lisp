@@ -20,7 +20,9 @@
    #:chain
    #:pysetf
    #:remote-objects
-   #:remote-objects*)
+   #:remote-objects*
+   #:pycall-monitor
+   #:pymethod-monitor)
   (:export ; import-export
    #:defpyfun
    #:defpymodule

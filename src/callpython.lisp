@@ -169,14 +169,14 @@ Examples:
 "
   (python-start-if-not-alive)
   (apply #'pycall
-	 (concatenate 'string
-		      (pythonize obj)
-		      (iter (for char in-string (format nil ".~(~a~)" method-name))
-			    (collect (if (char= char #\-)
-					 #\_
-					 char)
-			      result-type string)))
-	 args))
+         (concatenate 'string
+                      (pythonize obj)
+                      (iter (for char in-string (format nil ".~(~a~)" method-name))
+                            (collect (if (char= char #\-)
+                                         #\_
+                                         char)
+                              result-type string)))
+         args))
 
 (defun function-args (args)
   "Internal function, intended to be called by the CHAIN macro.
@@ -323,4 +323,42 @@ This version evaluates the result, returning it as a lisp value if possible.
 "
   `(pyeval (remote-objects ,@body)))
 
+(defun pycall-monitor (fun-name arg-list &key (interval 1) (output *standard-output*))
+  "Same as PYCALL, but \"monitors\" the output of the function. Useful for
+functions like keras.Model.fit."
+  (python-start-if-not-alive)
+  (let ((call (bt:make-thread
+               (lambda ()
+                 (let ((to-py (uiop:process-info-input *python*)))
+                   (write-char #\m to-py)
+                   (stream-write-value (list fun-name arg-list) to-py)
+                   (force-output to-py)))))
+        (from-py (uiop:process-info-output py4cl::*python*)))
+    (iter (while (bt:thread-alive-p call))
+          (write-string (read-line from-py) output)
+          (terpri output)
+          (force-output output)
+          (sleep interval)
+          (finally (iter (for line = (read-line from-py))
+                         (when (string= line "_py4cl_monitor_error")
+                           (error 'pyerror
+                                  :text (stream-read-value from-py)))
+                         (while (not (ignore-errors
+                                       (string= (subseq line 0 18) "_py4cl_monitor_end"))))
+                         (write-string line output)
+                         (terpri output))))
+    (dispatch-messages *python*)))
+
+(defun pymethod-monitor (obj method-name arg-list &key (interval 1) (output *standard-output*))
+  "Same as PYCALL-MONITOR, but handy for calling methods."
+  (apply #'pycall-monitor
+	 (concatenate 'string
+		      (pythonize obj)
+		      (iter (for char in-string (format nil ".~(~a~)" method-name))
+			    (collect (if (char= char #\-)
+					 #\_
+					 char)
+			      result-type string)))
+         (cons arg-list
+                 `(:interval ,interval :output ,output))))
 
