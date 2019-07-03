@@ -190,9 +190,11 @@ is NIL."
         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
         ;; so that the result reflects changes to the readtable
         ;; Note that the package doesn't use CL to avoid shadowing
-        (exporting-package (make-package lisp-package :use '())))
+        (exporting-package
+	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
     (import '(cl:nil)) ; So that missing docstring is handled
     (append '(progn)
+            (list (macroexpand `(defpackage ,lisp-package)))
             (if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
             (iter (for fun-name in-vector fun-names)
                   (collect (macroexpand `(defpyfun
