@@ -1,5 +1,4 @@
 * Urgent
-- being able to pass python generators
 - more documentation (quite done; not committed)
 
 * Optional

@@ -258,6 +258,14 @@ def lispify(obj):
         # Another unknown type. Return a handle to a python object
         return lispify_handle(obj)
 
+def generator(function, stop_value):
+    temp = None
+    while True:
+        temp = function()
+        if temp == stop_value: break
+        yield temp
+
+eval_globals["_py4cl_generator"] = generator
 
 ##################################################################
 

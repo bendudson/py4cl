@@ -360,5 +360,8 @@ functions like keras.Model.fit."
 					 char)
 			      result-type string)))
          (cons arg-list
-                 `(:interval ,interval :output ,output))))
+               `(:interval ,interval :output ,output))))
+
+(defun pygenerator (function stop-value)
+  (pycall "_py4cl_generator" function stop-value))
 
