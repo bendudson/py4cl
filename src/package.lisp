@@ -9,7 +9,8 @@
    #:pystop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:pyversion-info)
+   #:pyversion-info
+   #:pyinterrupt)
   (:export ; callpython
    #:pyerror
    #:pyeval

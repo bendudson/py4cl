@@ -60,6 +60,14 @@ If still not alive, raises a condition."
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
 
+(defun pyinterrupt (&optional (process *python*))
+  (when (python-alive-p process)
+    (uiop:run-program
+     (concatenate 'string "/bin/kill -SIGINT -"
+		  (write-to-string (uiop:process-info-pid process)))
+     :force-shell t
+     )))
+
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."
   (python-start-if-not-alive)

@@ -13,6 +13,7 @@ import itertools
 import inspect
 import json
 import os
+import signal
 
 config = {}
 def load_config():
@@ -508,6 +509,10 @@ eval_globals["_py4cl_objects"] = python_objects
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
+
+def signal_handler(sig, frame):
+    message_dispatch_loop()
+signal.signal(signal.SIGINT, signal_handler)
 
 # Main loop
 message_dispatch_loop()
