@@ -127,6 +127,11 @@ Keywords:
                           (collect (intern (lispify-name name) :keyword))
                           (collect actual-value-symbol))))
     `(progn
+       ,@(unless called-from-defpymodule
+           `((python-start-if-not-alive)
+             ,(if import-module
+                 `(pyexec "import " ,pymodule-name)
+                 `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
        (defun ,fun-symbol (,@parameter-list)
               ,(or fun-doc "Python function")
               ,(if fun-args-with-defaults
