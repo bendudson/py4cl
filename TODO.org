@@ -3,6 +3,7 @@
 
 * Optional
 - importing arguments for more callable objects - like ufunc of numpy
+- finding equivalent of inspect._empty in python2 (unable to google)
 - importing python classes, and methods, may be, as subclasses 
   of 'python-object
 

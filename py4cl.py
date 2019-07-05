@@ -147,16 +147,20 @@ return_values = 0 # Try to return values to lisp. If > 0, always return a handle
                   # A counter is used, rather than Boolean, to allow nested environments.
 
 python_to_lisp_type = {
-  bool: "BOOLEAN",
-  type(None): "NULL",
-  int: "INTEGER",
-  float: "FLOAT",
-  complex: "COMPLEX",
-  list: "VECTOR",
-  dict: "HASH-TABLE",
-  str: "STRING",
-  inspect._empty: "NIL"
+    bool: "BOOLEAN",
+    type(None): "NULL",
+    int: "INTEGER",
+    float: "FLOAT",
+    complex: "COMPLEX",
+    list: "VECTOR",
+    dict: "HASH-TABLE",
+    str: "STRING",
 }
+
+try:
+    python_to_lisp_type[inspect._empty] = "NIL"
+except:
+    pass
     
 ##################################################################
 # This code adapted from cl4py
