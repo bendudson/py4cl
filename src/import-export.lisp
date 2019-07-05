@@ -37,7 +37,7 @@
 
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
-          (pyeval "dict(inspect.signature(" fun-name ").parameters)")))
+          (ignore-errors (pyeval "dict(inspect.signature(" fun-name ").parameters)"))))
     (unless signature-dict (return-from get-arg-list signature-dict))
     (iter (initially (remhash "kwargs" signature-dict)
                      (remhash "args" signature-dict))
@@ -79,7 +79,7 @@ def _py4cl_non_callable(ele):
 ;; defpymodule takes care of this, along with keeping minimal work
 ;; in defpyfun
 
-(defmacro defpyfun (fun-name pymodule-name
+(defmacro defpyfun (fun-name &optional pymodule-name
                     &key
                       (as fun-name)
                       (import-module nil) ; see above
@@ -102,10 +102,12 @@ Keywords:
   (check-type fun-name string)
   (check-type lisp-fun-name string)
   (check-type lisp-package package)
-  (check-type pymodule-name string)
+  ;; (check-type pymodule-name string) ;; (or nil string)
   ;; (check-type as string) ;; (or nil string)?
   (python-start-if-not-alive)
-  (unless called-from-defpymodule
+  (unless (or called-from-defpymodule
+              (null pymodule-name)
+              (string= "" pymodule-name))
     (pyexec "import inspect")
     (if import-module
         (pyexec "import " pymodule-name)
@@ -150,9 +152,10 @@ Keywords:
     `(progn
        ,@(unless called-from-defpymodule
            `((python-start-if-not-alive)
-             ,(if import-module
-                 `(pyexec "import " ,pymodule-name)
-                 `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
+             ,(unless (or (null pymodule-name) (string= "" pymodule-name))
+                (if import-module
+                    `(pyexec "import " ,pymodule-name)
+                    `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
        (defun ,fun-symbol (,@parameter-list)
               ,(or fun-doc "Python function")
               ,(if fun-args-with-defaults
