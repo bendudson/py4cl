@@ -5,7 +5,17 @@
 - importing arguments for more callable objects - like ufunc of numpy
 - finding equivalent of inspect._empty in python2 (unable to google)
 - importing python classes, and methods, may be, as subclasses 
-  of 'python-object
+  of 'python-object; to be able to use make-instance might require 
+  knowledge of MOP
+- should return value of defpyfun matter - so as to indicate success or failure?
+  failure is anyways indicated by errors
+- should pycall-monitor and pymethod-monitor completely replace pycall
+  and pymethod? if so, what other changes are needed?
+- ability to define customized arg-lists, documentation, and calling methods
+  for functions: this can serve as a community project to cover up some 
+  naming and arg-list idiosyncrasies
+- cleaning up documentation while defining functions - many functions have 
+  documentation intended for use directly in md/rst files
 
 * For Release 
 - review and may be, add tests

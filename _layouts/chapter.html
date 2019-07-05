@@ -1,0 +1,18 @@
+---
+layout: default
+---
+
+
+<div id="content"
+  {{ content }}
+
+  <p class="page-source">
+    Page source: <a href="https://github.com/digikar99/py4cl/blob/master/{{ page.path }}">{{ page.path }}</a>
+  </p>
+</div>
+
+<script type="text/javascript">
+  $("#toc").toc({
+     content: "#content",  // will ignore the first h1 with the site+page title.
+     headings: "h1,h2,h3,h4"});
+</script>
