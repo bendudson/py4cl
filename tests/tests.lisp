@@ -11,9 +11,9 @@
 (defsuite pytests (tests))
 
 (deffixture pytests (@body)
-  (py4cl:python-start)
+  (py4cl:pystart)
   @body
-  (py4cl:python-stop))
+  (py4cl:pystop))
 
 (defun run (&optional interactive?)
   "Run all the tests for py4cl."
@@ -22,39 +22,39 @@
 ;; Start and stop Python, check that python-alive-p responds
 (deftest start-stop (tests)
   (assert-false (py4cl:python-alive-p))
-  (py4cl:python-start)
+  (py4cl:pystart)
   (assert-true (py4cl:python-alive-p))
-  (py4cl:python-stop)
+  (py4cl:pystop)
   (assert-false (py4cl:python-alive-p)))
 
 (deftest eval-integer (pytests)
-  (let ((result (py4cl:python-eval "1 + 2 * 3")))
+  (let ((result (py4cl:pyeval "1 + 2 * 3")))
     (assert-true (typep result 'integer))
     (assert-equalp 7 result)))
 
 (deftest eval-malformed (pytests)
-  (assert-condition py4cl:python-error
-      (py4cl:python-eval "1 + ")))
+  (assert-condition py4cl:pyerror
+      (py4cl:pyeval "1 + ")))
 
 (deftest eval-real (pytests)
-  (let ((result (py4cl:python-eval "1.3 + 2.2")))
+  (let ((result (py4cl:pyeval "1.3 + 2.2")))
     (assert-true (typep result 'real))
     (assert-equalp 3.5 result)))
 
 (deftest eval-vector (pytests)
-  (let ((result (py4cl:python-eval "[i**2 for i in range(4)]")))
+  (let ((result (py4cl:pyeval "[i**2 for i in range(4)]")))
     (assert-true (typep result 'array))
     (assert-equalp #(0 1 4 9) result)))
 
 (deftest eval-list (pytests)
-  (let ((result (py4cl:python-eval "(1,2,3)")))
+  (let ((result (py4cl:pyeval "(1,2,3)")))
     (assert-true (typep result 'cons))
     (assert-equalp '(1 2 3) result)))
 
 ;; Check passing strings, including quote characters which need to be escaped
 (deftest eval-string (pytests)
   (assert-equalp "say \"hello\" world"
-      (py4cl:python-eval "'say \"hello\"' + ' world'")))
+      (py4cl:pyeval "'say \"hello\"' + ' world'")))
 
 (deftest pythonize-format-string (tests)
   (assert-equalp "\"foo\""
@@ -62,15 +62,15 @@
 
 (deftest eval-format-string (pytests)
   (assert-equalp "foo"
-                 (py4cl:python-eval
+                 (py4cl:pyeval
                   (py4cl::pythonize (format nil "foo")))))
 
 ;; This tests whether outputs to stdout mess up the return stream
 (deftest eval-print (pytests)
-  (unless (= 2 (first (py4cl:python-version-info)))
+  (unless (= 2 (first (py4cl:pyversion-info)))
     ;; Should return the result of print, not the string printed
     (assert-equalp nil
-        (py4cl:python-eval "print(\"hello\")")
+        (py4cl:pyeval "print(\"hello\")")
         "This fails with python 2")
 
     ;; Should print the output to stdout
@@ -90,115 +90,115 @@
   (let ((a 4)
         (b 7))
     (assert-equalp 11
-        (py4cl:python-eval a "+" b)))
+        (py4cl:pyeval a "+" b)))
 
   ;; Arrays can also be passed
   (assert-equalp #2A((1 2) (3 4))
-    (py4cl:python-eval #2A((1 2) (3 4))))
+    (py4cl:pyeval #2A((1 2) (3 4))))
 
   (assert-equalp #2A((2 4) (6 8))
-    (py4cl:python-eval #2A((1 2) (3 4)) "*" 2))
+    (py4cl:pyeval #2A((1 2) (3 4)) "*" 2))
 
   (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
-    (py4cl:python-eval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
+    (py4cl:pyeval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
 
   ;; Test handling of real numbers in arrays
   (assert-equalp #(1.0 2.0)
-      (py4cl:python-eval (vector 1.0 2.0)))
+      (py4cl:pyeval (vector 1.0 2.0)))
 
   ;; Test empty arrays
   (assert-equalp #()
-                 (py4cl:python-eval #()))
+                 (py4cl:pyeval #()))
 
   ;; Unless the values are strings
   (let ((str "hello"))
-    (assert-condition py4cl:python-error
-        (py4cl:python-eval "len(" str ")"))  ; "len(hello)"
+    (assert-condition py4cl:pyerror
+        (py4cl:pyeval "len(" str ")"))  ; "len(hello)"
 
     ;; To pass a string to python, run through pythonize:
     (assert-equalp 5
-        (py4cl:python-eval "len(" (py4cl::pythonize str) ")"))))
+        (py4cl:pyeval "len(" (py4cl::pythonize str) ")"))))
 
 (deftest complex-values (pytests)
   ;; Single values
   (assert-equality #'= #C(1 2)
-    (py4cl:python-eval #C(1 2)))
+    (py4cl:pyeval #C(1 2)))
   (assert-equality #'= #C(1 -2)
-    (py4cl:python-eval #C(1 -2)))
+    (py4cl:pyeval #C(1 -2)))
   (assert-equality #'= #C(-1 -2)
-    (py4cl:python-eval #C(-1 -2)))
+    (py4cl:pyeval #C(-1 -2)))
 
   ;; Expressions. Tested using multiply to catch things like
   ;; "1+2j * 2+3j -> 1+7j rather than (-4+7j)
   ;; Note: Python doesn't have complex integers, so all returned
   ;;       values could be floats
   (assert-equality #'= #C(-4 7)
-    (py4cl:python-eval #C(1 2) "*" #C(2 3)))
+    (py4cl:pyeval #C(1 2) "*" #C(2 3)))
   (assert-equality #'= #C(4 7)
-    (py4cl:python-eval #C(1 -2) "*" #C(-2 3)))
+    (py4cl:pyeval #C(1 -2) "*" #C(-2 3)))
   
   ;; Lists of complex numbers
   (assert-equality #'= #C(6 9)
-    (py4cl:python-call "sum" (list #C(1 2) #C(2 3) #C(3 4)))))
+    (py4cl:pycall "sum" (list #C(1 2) #C(2 3) #C(3 4)))))
 
 (deftest exec-print (pytests)
-  (unless (= 2 (first (py4cl:python-version-info)))
+  (unless (= 2 (first (py4cl:pyversion-info)))
       ;; Python 3
       (assert-equalp nil
-          (py4cl:python-exec "print(\"hello\")")
+          (py4cl:pyexec "print(\"hello\")")
         "This fails with python 2")))
 
 (deftest call-lambda-no-args (pytests)
   (assert-equalp 3
-      (py4cl:python-call "lambda : 3")))
+      (py4cl:pycall "lambda : 3")))
 
 (deftest call-one-arg-int (pytests)
   (assert-equalp 42
-      (py4cl:python-call "abs" -42)))
+      (py4cl:pycall "abs" -42)))
 
 (deftest call-one-arg-list (pytests)
   (assert-equalp 9
-      (py4cl:python-call "sum" '(3 2 4))))
+      (py4cl:pycall "sum" '(3 2 4))))
 
 (deftest call-one-arg-string (pytests)
   (assert-equalp #("h" "e" "l" "l" "o")
-      (py4cl:python-call "list" "hello")))
+      (py4cl:pycall "list" "hello")))
 
 (deftest call-dotted-function (pytests)
-  (py4cl:python-exec "import math")
+  (py4cl:pyexec "import math")
   (assert-equalp (sqrt 42)
-      (py4cl:python-call "math.sqrt" 42)))
+      (py4cl:pycall "math.sqrt" 42)))
 
 (deftest call-lambda-function (pytests)
   (assert-equalp 16
-      (py4cl:python-call "lambda x: x*x" 4)))
+      (py4cl:pycall "lambda x: x*x" 4)))
 
 (deftest call-lambda-function-two-args (pytests)
   (assert-equalp 10
-      (py4cl:python-call "lambda x, y: x*y - y" 3 5)))
+      (py4cl:pycall "lambda x, y: x*y - y" 3 5)))
 
 (deftest call-lambda-keywords (pytests)
   (assert-equalp -1
-      (py4cl:python-call "lambda a=0, b=1: a-b" :b 2 :a 1))
+      (py4cl:pycall "lambda a=0, b=1: a-b" :b 2 :a 1))
   (assert-equalp 1
-      (py4cl:python-call "lambda a=0, b=1: a-b" :a 2 :b 1)))
+      (py4cl:pycall "lambda a=0, b=1: a-b" :a 2 :b 1)))
 
 (deftest call-with-lambda-callback (pytests)
   ;; Define a function in python which calls its argument
-  (py4cl:python-exec "runme = lambda f: f()")
-  ;; Pass a lambda function to python-call
+  (py4cl:pyexec "runme = lambda f: f()")
+  ;; Pass a lambda function to pycall
   (assert-equalp 42
-      (py4cl:python-call "runme" (lambda () 42))))
+      (py4cl:pycall "runme" (lambda () 42))))
 
-(py4cl:import-function "sum")
-(deftest import-function-sum (pytests)
+(py4cl:defpyfun "sum")
+(deftest defpyfun-sum (pytests)
   (assert-equalp 6
       (sum '(2 1 3))))
 
 (deftest call-return-numpy-types (pytests)
-  (py4cl:python-exec "import numpy as np")
+  (py4cl:pyexec "import numpy as np")
   (assert-equalp 42.0
-                 (py4cl:python-eval "np.float64(42.0)")))
+                 (py4cl:pyeval "np.float64(42.0)")))
 
 ;; Simple callback function
 (defun test-func ()
@@ -207,7 +207,7 @@
 (deftest callback-no-args (pytests)
   (py4cl:export-function #'test-func "test")
   (assert-equalp 42
-      (py4cl:python-eval "test()")))
+      (py4cl:pyeval "test()")))
 
 ;; Even simpler function returning NIL
 (defun nil-func ()
@@ -216,89 +216,89 @@
 (deftest callback-no-args-return-nil (pytests)
   (py4cl:export-function #'nil-func "test_nil")
   (assert-equalp nil
-      (py4cl:python-eval "test_nil()")))
+      (py4cl:pyeval "test_nil()")))
 
 ;; Python can't eval write-to-string's output "3.141592653589793d0"
 (deftest callback-return-double (pytests)
   (py4cl:export-function (lambda () pi) "test")
   (assert-equalp 3.1415927
-      (py4cl:python-eval "test()")))
+      (py4cl:pyeval "test()")))
 
 (deftest callback-one-arg (pytests)
   (py4cl:export-function (lambda (x) (* 2 x)) "double")
   (assert-equalp 4
-      (py4cl:python-eval "double(2)")))
+      (py4cl:pyeval "double(2)")))
 
 (deftest callback-two-args (pytests)
   (py4cl:export-function (lambda (x y) (/ x y)) "div")
   (assert-equalp 3
-      (py4cl:python-eval "div(6, 2)")))
+      (py4cl:pyeval "div(6, 2)")))
 
 (deftest callback-many-args (pytests)
   (py4cl:export-function #'+ "add")
   (assert-equalp 15
-      (py4cl:python-eval "add(2, 4, 6, 3)")))
+      (py4cl:pyeval "add(2, 4, 6, 3)")))
 
 (deftest callback-seq-arg (pytests)
   (py4cl:export-function #'reverse "reverse")
   (assert-equalp '(3 1 2 4)
-      (py4cl:python-eval "reverse((4,2,1,3))"))
+      (py4cl:pyeval "reverse((4,2,1,3))"))
   (assert-equalp #(3 1 2 4)
-      (py4cl:python-eval "reverse([4,2,1,3])")))
+      (py4cl:pyeval "reverse([4,2,1,3])")))
 
 (deftest callback-keyword-arg (pytests)
   (py4cl:export-function (lambda (&key setting) setting) "test")
   (assert-equalp nil
-      (py4cl:python-eval "test()"))
+      (py4cl:pyeval "test()"))
   (assert-equalp 42
-      (py4cl:python-eval "test(setting=42)")))
+      (py4cl:pyeval "test(setting=42)")))
 
 
 ;; Call python during callback
 (deftest python-during-callback (pytests)
   (py4cl:export-function
-   (lambda () (py4cl:python-eval "42"))
+   (lambda () (py4cl:pyeval "42"))
    "test")
   (assert-equalp 42
-      (py4cl:python-eval "test()")))
+      (py4cl:pyeval "test()")))
 
 ;; Hash-table support
 (deftest hash-table-empty (pytests)
   (assert-equalp "{}"
-      (py4cl:python-call "str" (make-hash-table))))
+      (py4cl:pycall "str" (make-hash-table))))
 
 (deftest hash-table-values (pytests)
   (let ((table (make-hash-table)))
     (setf (gethash "test" table) 3
           (gethash "more" table) 42)
     (assert-equalp 42
-        (py4cl:python-call "lambda d: d[\"more\"]" table))
+        (py4cl:pycall "lambda d: d[\"more\"]" table))
     (assert-equalp 3
-        (py4cl:python-call "lambda d: d[\"test\"]" table))
+        (py4cl:pycall "lambda d: d[\"test\"]" table))
     (assert-equalp 2
-        (py4cl:python-call "len" table))))
+        (py4cl:pycall "len" table))))
 
 (deftest hash-table-from-dict (pytests)
   ;; Simple keys
-  (let ((table (py4cl:python-eval "{1:2, 2:3}")))
+  (let ((table (py4cl:pyeval "{1:2, 2:3}")))
     (assert-equalp 2
                    (gethash 1 table))
     (assert-equalp 3
                    (gethash 2 table)))
   
   ;; Ensure values are being lispified
-  (let ((table (py4cl:python-eval "{1:[1,2,3]}")))
+  (let ((table (py4cl:pyeval "{1:[1,2,3]}")))
     (assert-equalp #(1 2 3)
                    (gethash 1 table)))
   
   ;; Ensure keys are being lispified and string keys work
-  (let ((table (py4cl:python-eval "{\"test\":42}")))
+  (let ((table (py4cl:pyeval "{\"test\":42}")))
     (assert-equalp 42
                    (gethash "test" table))))
 
 ;; Asyncronous functions
 (deftest call-function-async (pytests)
-  (let ((thunk (py4cl:python-call-async "str" 42)))
+  (let ((thunk (py4cl:pycall-async "str" 42)))
     ;; returns a function which when called returns the result
     (assert-equalp "42"
         (funcall thunk))
@@ -307,14 +307,14 @@
         (funcall thunk)))
 
   ;; Check if it handles errors
-  (let ((thunk (py4cl:python-call-async "len"))) ; TypeError
-    (assert-condition py4cl:python-error
+  (let ((thunk (py4cl:pycall-async "len"))) ; TypeError
+    (assert-condition py4cl:pyerror
         (funcall thunk)))
 
   ;; Check that values can be requested out of order
-  (let ((thunk1 (py4cl:python-call-async "str" 23))
-        (thunk2 (py4cl:python-call-async "str" 12))
-        (thunk3 (py4cl:python-call-async "str" 7)))
+  (let ((thunk1 (py4cl:pycall-async "str" 23))
+        (thunk2 (py4cl:pycall-async "str" 12))
+        (thunk3 (py4cl:pycall-async "str" 7)))
     (assert-equalp "12"
         (funcall thunk2))
     (assert-equalp "7"
@@ -324,7 +324,7 @@
 
 (deftest python-objects (pytests)
   ;; Define a simple python class containing a value
-  (py4cl:python-exec
+  (py4cl:pyexec
 "class Test:
   pass
 
@@ -333,29 +333,29 @@ a.value = 42")
 
   ;; Check that the variable has been defined
   (assert-equalp 42
-                 (py4cl:python-eval "a.value"))
+                 (py4cl:pyeval "a.value"))
 
   ;; Implementation detail: No objects stored in python dict
   (assert-equalp 0
-                 (py4cl:python-eval "len(_py4cl_objects)"))
+                 (py4cl:pyeval "len(_py4cl_objects)"))
   
   ;; Evaluate and return a python object
-  (let ((var (py4cl:python-eval "a")))
+  (let ((var (py4cl:pyeval "a")))
     ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL::PYTHON-OBJECT
                    (type-of var))
     
     ;; Implementation detail: Object is stored in a dictionary
     (assert-equalp 1
-                   (py4cl:python-eval "len(_py4cl_objects)"))
+                   (py4cl:pyeval "len(_py4cl_objects)"))
 
     ;; Can pass to eval to use dot accessor
     (assert-equalp 42
-                   (py4cl:python-eval var ".value"))
+                   (py4cl:pyeval var ".value"))
 
     ;; Can pass as argument to function
     (assert-equal 84
-                  (py4cl:python-call "lambda x : x.value * 2" var)))
+                  (py4cl:pycall "lambda x : x.value * 2" var)))
   
   ;; Trigger a garbage collection so that VAR is finalized.
   ;; This should also delete the object in python
@@ -365,22 +365,22 @@ a.value = 42")
   ;; Note: This is dependent on the CL implementation. Trivial-garbage
   ;; doesn't seem to support ccl
   #-clozure (assert-equalp 0
-                (py4cl::python-eval "len(_py4cl_objects)")))
+                (py4cl::pyeval "len(_py4cl_objects)")))
 
 (deftest python-del-objects (tests)
     ;; Check that finalizing objects doesn't start python
-  (py4cl:python-start)
-  (py4cl:python-exec
+  (py4cl:pystart)
+  (py4cl:pyexec
 "class Test:
   pass
 
 a = Test()")
-  (let ((var (py4cl:python-eval "a")))
+  (let ((var (py4cl:pyeval "a")))
     ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL::PYTHON-OBJECT
         (type-of var))
     
-    (py4cl:python-stop)
+    (py4cl:pystop)
     (assert-false (py4cl:python-alive-p)))
   
   ;; VAR out of scope. Make sure it's finalized
@@ -390,13 +390,13 @@ a = Test()")
 
 (deftest python-method (pytests)
   (assert-equalp 3
-      (py4cl:python-method '(1 2 3) '__len__))
+      (py4cl:pymethod '(1 2 3) '__len__))
   (assert-equalp "hello world"
-      (py4cl:python-method "hello {0}" 'format "world")))
+      (py4cl:pymethod "hello {0}" 'format "world")))
 
 
 ;; Shorter more convenient slicing
-(py4cl:import-function "slice")
+(py4cl:defpyfun "slice")
 
 (deftest chain (pytests)
   (assert-equalp "Hello world"
@@ -423,14 +423,14 @@ a = Test()")
   (assert-equalp #(4 5)
       (py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2))))
 
-  (let ((dict (py4cl:python-eval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
+  (let ((dict (py4cl:pyeval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
     (assert-equalp "world"
         (py4cl:chain dict "hello"))
     (assert-equalp "pong"
         (py4cl:chain dict ([] "ping")))))
   
 (deftest chain-keywords (pytests)
-  (py4cl:python-exec
+  (py4cl:pyexec
    "def test_fn(arg, key=1):
        return arg * key")
 
@@ -439,7 +439,7 @@ a = Test()")
   (assert-equalp 6
       (py4cl:chain (test_fn 3 :key 2)))
 
-  (py4cl:python-exec
+  (py4cl:pyexec
    "class testclass:
       def run(self, dummy = 1, value = 42):
         return value")
@@ -452,7 +452,7 @@ a = Test()")
 
 
 (deftest chain-strings (pytests)
-  (py4cl:python-exec
+  (py4cl:pyexec
    "class TestClass:
       def doThing(self, dummy = 1, value = 42):
         return value")
@@ -466,48 +466,48 @@ a = Test()")
 (deftest remote-objects (pytests)
   ;; REMOTE-OBJECTS returns a handle
   (assert-equalp 'py4cl::python-object
-                 (type-of (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+                 (type-of (py4cl:remote-objects (py4cl:pyeval "1+2"))))
 
   ;; REMOTE-OBJECTS* returns a value
   (assert-equalp 3
-                 (py4cl:remote-objects* (py4cl:python-eval "1+2")))
+                 (py4cl:remote-objects* (py4cl:pyeval "1+2")))
     
   (assert-equalp 3
-                 (py4cl:python-eval 
-                  (py4cl:remote-objects (py4cl:python-eval "1+2"))))
+                 (py4cl:pyeval 
+                  (py4cl:remote-objects (py4cl:pyeval "1+2"))))
 
   ;; Nested remote-object environments
 
   (assert-equalp 'py4cl::python-object
                  (type-of (py4cl:remote-objects
-                           (py4cl:remote-objects (py4cl:python-eval "1+2"))
-                           (py4cl:python-eval "1+2")))))
+                           (py4cl:remote-objects (py4cl:pyeval "1+2"))
+                           (py4cl:pyeval "1+2")))))
 
 (deftest call-callable-object (pytests)
   (assert-equalp 6
-      (py4cl:python-call (py4cl:python-eval "lambda x : 2*x") 3)))
+      (py4cl:pycall (py4cl:pyeval "lambda x : 2*x") 3)))
 
 (deftest setf-eval (pytests)
-  (setf (py4cl:python-eval "test_value") 42) ; Set a variable
+  (setf (py4cl:pyeval "test_value") 42) ; Set a variable
   (assert-equalp 42
-                 (py4cl:python-eval "test_value")))  
+                 (py4cl:pyeval "test_value")))  
 
 (deftest setf-chain (pytests)
   (assert-equalp #(0 5 2 -1)
                  (py4cl:remote-objects*
-                   (let ((list (py4cl:python-eval "[0, 1, 2, 3]")))
+                   (let ((list (py4cl:pyeval "[0, 1, 2, 3]")))
                      (setf (py4cl:chain list ([] 1)) 5
                            (py4cl:chain list ([] -1)) -1)
                      list)))
 
   (assert-equalp "world"
       (py4cl:remote-objects*
-        (let ((dict (py4cl:python-eval "{}")))
+        (let ((dict (py4cl:pyeval "{}")))
           (setf (py4cl:chain dict ([] "hello")) "world")
           (py4cl:chain dict ([] "hello")))))
   
   ;; Define an empty class which can be modified
-  (py4cl:python-exec "
+  (py4cl:pyexec "
 class testclass:
   pass")
   
@@ -524,7 +524,7 @@ class testclass:
 
 (deftest lisp-structs (pytests)
   ;; Create a struct and pass to Python
-  (let ((result (py4cl:python-call
+  (let ((result (py4cl:pycall
                  "lambda x: x"
                  (make-test-struct :x 1 :y 2))))
 
@@ -554,7 +554,7 @@ class testclass:
   (let ((object (make-instance 'test-class :thing 23 :value 42)))
     ;; Slot access
     (assert-equalp 23
-        (py4cl:python-call "lambda x : x.thing" object))
+        (py4cl:pycall "lambda x : x.thing" object))
     (assert-equalp 42
         (py4cl:chain object value))
 
@@ -582,7 +582,7 @@ class testclass:
 (deftest lisp-class-inherit (pytests)
   (let ((object (make-instance 'child-class :thing 23 :value 42 :other 3)))
     (assert-equalp 23
-        (py4cl:python-call "lambda x : x.thing" object))
+        (py4cl:pycall "lambda x : x.thing" object))
     (assert-equalp 42
         (py4cl:chain object value))
     (assert-equalp 3
@@ -592,4 +592,4 @@ class testclass:
   ;; Callbacks send values to lisp in remote-objects environments
   (assert-equalp 6
       (py4cl:remote-objects*
-        (py4cl:python-call (lambda (x y) (* x y)) 2 3))))
+        (py4cl:pycall (lambda (x y) (* x y)) 2 3))))
