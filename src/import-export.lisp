@@ -50,17 +50,23 @@
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
+  (pyexec "
+def _py4cl")
   (let ((method-vector (pyeval "[name for name, ele in inspect.getmembers("
                                python-object ", callable)]")))
     (if as-vector method-vector (coerce method-vector 'list))))
 
-;; (defun pyslot-list (python-object &key (as-vector nil))
-;;   (pyexec "import inspect")
-;;   (let ((slot-vector
-;;          (pyeval "[name for name, ele in inspect.getmembers("
-;;                  python-object
-;;                  ", (lambda ele: not(inspect.isroutine(ele))))]")))
-;;     (if as-vector slot-vector (coerce slot-vector 'list))))
+(defun pyslot-list (python-object &key (as-vector nil))
+  (pyexec "import inspect")
+  (pyexec "
+def _py4cl_non_callable(ele):
+  import inspect
+  return not(inspect.isroutine(ele))")
+  (let ((slot-vector
+         (pyeval "[name for name, ele in inspect.getmembers("
+                 python-object
+                 ", _py4cl_non_callable)]")))
+    (if as-vector slot-vector (coerce slot-vector 'list))))
 
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
