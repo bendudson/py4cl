@@ -38,4 +38,7 @@
    #:initialize
    #:save-config
    #:load-config
-   #:config-var))
+   #:config-var
+   #:pycmd
+   #:numpy-pickle-location
+   #:numpy-pickle-lower-bound))
