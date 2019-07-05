@@ -137,7 +137,8 @@ Keywords:
               ,(if fun-args-with-defaults
                    `(funcall #'pycall ,fullname ,@pass-list)
                    `(apply #'pycall ,fullname args)))
-       (export ',fun-symbol ,lisp-package))))
+       ,(when called-from-defpymodule
+         `(export ',fun-symbol ,lisp-package)))))
 
 
 (defmacro defpysubmodules (pymodule-name as)
