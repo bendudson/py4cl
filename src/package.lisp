@@ -24,7 +24,8 @@
    #:remote-objects*
    #:pycall-monitor
    #:pymethod-monitor
-   #:pygenerator)
+   #:pygenerator
+   #:pyslot-value)
   (:export ; import-export
    #:defpyfun
    #:defpymodule

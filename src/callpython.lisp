@@ -352,16 +352,22 @@ functions like keras.Model.fit."
 (defun pymethod-monitor (obj method-name arg-list &key (interval 1) (output *standard-output*))
   "Same as PYCALL-MONITOR, but handy for calling methods."
   (apply #'pycall-monitor
-	 (concatenate 'string
-		      (pythonize obj)
-		      (iter (for char in-string (format nil ".~(~a~)" method-name))
-			    (collect (if (char= char #\-)
-					 #\_
-					 char)
-			      result-type string)))
+	 (concatenate 'string (pythonize obj) "." (pythonize-name method-name))
          (cons arg-list
                `(:interval ,interval :output ,output))))
 
 (defun pygenerator (function stop-value)
   (pycall "_py4cl_generator" function stop-value))
+
+(defun pythonize-name (symbol)
+  "Returns downcased SYMBOL-NAME of SYMBOL, and hyphens replaced with underscores.
+Eg. (pythonize-name 'some-example) -> \"some_example\""
+  (iter (for char in-string (format nil "~(~a~)" symbol))
+        (collect (if (char= char #\-)
+                     #\_
+                     char)
+          result-type string)))
+
+(defun pyslot-value (object slot-name)
+  (pyeval object "." (pythonize-name slot-name)))
 
