@@ -27,6 +27,8 @@
    #:pygenerator
    #:pyslot-value)
   (:export ; import-export
+   #:pymethod-list
+   #:pyslot-list
    #:defpyfun
    #:defpymodule
    #:defpyfuns

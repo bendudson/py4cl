@@ -6,6 +6,7 @@
 ;;;   default values in Slime.
 ;;;   - For customizability, we ought to be able to load some "config" file
 ;;;   containing name, signature, documentation, call method for some functions.
+;;;   This latter hasn't been attempted yet.
 
 
 (in-package :py4cl)
@@ -36,7 +37,7 @@
 
 (defun get-arg-list (fun-name)
   (let* ((signature-dict
-          (ignore-errors (pyeval "dict(inspect.signature(" fun-name ").parameters)"))))
+          (pyeval "dict(inspect.signature(" fun-name ").parameters)")))
     (unless signature-dict (return-from get-arg-list signature-dict))
     (iter (initially (remhash "kwargs" signature-dict)
                      (remhash "args" signature-dict))
@@ -47,6 +48,20 @@
             (return-from get-arg-list '()))
           (collect (list name default)))))
 
+(defun pymethod-list (python-object &key (as-vector nil))
+  (pyexec "import inspect")
+  (let ((method-vector (pyeval "[name for name, ele in inspect.getmembers("
+                               python-object ", callable)]")))
+    (if as-vector method-vector (coerce method-vector 'list))))
+
+;; (defun pyslot-list (python-object &key (as-vector nil))
+;;   (pyexec "import inspect")
+;;   (let ((slot-vector
+;;          (pyeval "[name for name, ele in inspect.getmembers("
+;;                  python-object
+;;                  ", (lambda ele: not(inspect.isroutine(ele))))]")))
+;;     (if as-vector slot-vector (coerce slot-vector 'list))))
+
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
 ;; to the user.
@@ -55,8 +70,8 @@
 ;; "keras.layers.Input" in python;
 ;; However, this leaves open the chance of a name conflict
 ;; - what if two python modules have the same name?
-;; import-module takes care of this, along with keeping minimal work
-;; in defpymodule
+;; defpymodule takes care of this, along with keeping minimal work
+;; in defpyfun
 
 (defmacro defpyfun (fun-name pymodule-name
                     &key
