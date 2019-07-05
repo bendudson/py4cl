@@ -43,4 +43,5 @@
    #:config-var
    #:pycmd
    #:numpy-pickle-location
-   #:numpy-pickle-lower-bound))
+   #:numpy-pickle-lower-bound
+   #:py-cd))

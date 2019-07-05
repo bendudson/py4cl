@@ -57,3 +57,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
   (save-config)
   (when (python-alive-p)
     (pycall "_py4cl_load_config")))
+
+(defun py-cd (path)
+  (pyexec "import os")
+  (pycall "os.chdir" path))
