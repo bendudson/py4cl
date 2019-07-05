@@ -371,3 +371,6 @@ Eg. (pythonize-name 'some-example) -> \"some_example\""
 (defun pyslot-value (object slot-name)
   (pyeval object "." (pythonize-name slot-name)))
 
+(defun pyhelp (python-object)
+  (pyeval "help(" python-object ")"))
+

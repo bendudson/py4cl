@@ -25,7 +25,8 @@
    #:pycall-monitor
    #:pymethod-monitor
    #:pygenerator
-   #:pyslot-value)
+   #:pyslot-value
+   #:pyhelp)
   (:export ; import-export
    #:pymethod-list
    #:pyslot-list
