@@ -50,8 +50,6 @@
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
-  (pyexec "
-def _py4cl")
   (let ((method-vector (pyeval "[name for name, ele in inspect.getmembers("
                                python-object ", callable)]")))
     (if as-vector method-vector (coerce method-vector 'list))))
