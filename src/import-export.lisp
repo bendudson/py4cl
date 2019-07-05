@@ -42,8 +42,9 @@
                      (remhash "args" signature-dict))
           (for (key val) in-hashtable signature-dict)
           (for name = (pyeval val ".name"))
-          (when (some #'upper-case-p name) (return-from get-arg-list '()))
           (for default = (pyeval val ".default"))
+          (when (or (some #'upper-case-p name) (typep default 'python-object))
+            (return-from get-arg-list '()))
           (collect (list name default)))))
 
 ;; In essence, this macro should give the full power of the
@@ -192,19 +193,23 @@ is NIL."
         ;; Note that the package doesn't use CL to avoid shadowing
         (exporting-package
 	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
-    (import '(cl:nil)) ; So that missing docstring is handled
-    (append '(progn)
-            (list (macroexpand `(defpackage ,lisp-package)))
-            (if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
-            (iter (for fun-name in-vector fun-names)
-                  (collect (macroexpand `(defpyfun
-                                             ,fun-name ,(or as pymodule-name)
-                                           :lisp-package ,exporting-package
-                                           :called-from-defpymodule t))))
-            (unless is-submodule
-              ;; Several symbols are introduced "somewhere" that are not functions
-              `((cl:mapc #'unintern (apropos-list,lisp-package))
-                t)))))
+    `(progn
+       (python-start-if-not-alive) ; Ensure python is running at execution as well!
+       ,(unless is-submodule
+         (if as
+             `(pyexec "import " ,pymodule-name " as " ,as)
+             `(pyexec "import " ,pymodule-name)))
+       ,@(list (macroexpand `(defpackage ,lisp-package)))
+       ,(if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
+       ,@(iter (for fun-name in-vector fun-names)
+               (collect (macroexpand `(defpyfun
+                                          ,fun-name ,(or as pymodule-name)
+                                        :lisp-package ,exporting-package
+                                        :called-from-defpymodule t))))
+       ,(unless is-submodule
+          ;; Several symbols are introduced "somewhere" that are not functions
+          `(cl:mapc #'unintern (apropos-list ,lisp-package))
+          t))))
 
 (defmacro defpyfuns (&rest args)
   "Each ARG is supposed to be a 2-3 element list of 
