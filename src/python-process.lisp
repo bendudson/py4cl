@@ -12,7 +12,7 @@ python session")
 
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
-This sets the global variable *python* to the process handle,
+This sets the global variable *python* to the process phandle,
 in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
@@ -30,12 +30,12 @@ By default this is is set to *PYTHON-COMMAND*
          :input :stream :output :stream))
   (incf *current-python-process-id*))
 
-(defun python-alive-p (&optional (process *python*))
+(defun python-alive-p (&optional (process-info *python*))
   "Returns non-NIL if the python process is alive
 (e.g. SBCL -> T, CCL -> RUNNING).
 Optionally pass the process object returned by PYTHON-START"
-  (and process
-       (uiop:process-alive-p process)))
+  (and process-info
+       (uiop:process-alive-p process-info)))
 
 (defun python-start-if-not-alive ()
   "If no python process is running, tries to start it.
@@ -48,23 +48,23 @@ If still not alive, raises a condition."
 ;; Function defined in writer.lisp, which clears an object store
 (declaim (ftype (function () t) clear-lisp-objects))
 
-(defun pystop (&optional (process *python*))
+(defun pystop (&optional (process-info *python*))
   "Stop (Quit) the python process PROCESS"
-  (unless (python-alive-p process)
+  (unless (python-alive-p process-info)
     (return-from pystop))
-  (let ((stream (uiop:process-info-input process)))
+  (let ((stream (uiop:process-info-input process-info)))
     ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
-  (uiop:close-streams process)
-  (uiop:terminate-process process)
+  (uiop:close-streams process-info)
+  (uiop:terminate-process process-info)
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
 
-(defun pyinterrupt (&optional (process *python*))
-  (when (python-alive-p process)
+(defun pyinterrupt (&optional (process-info *python*))
+  (when (python-alive-p process-info)
     (uiop:run-program
      (concatenate 'string "/bin/kill -SIGINT -"
-		  (write-to-string (uiop:process-info-pid process)))
+		  (write-to-string (uiop:process-info-pid process-info)))
      :force-shell t
      )))
 
