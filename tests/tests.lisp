@@ -190,7 +190,7 @@
   (assert-equalp 42
       (py4cl:pycall "runme" (lambda () 42))))
 
-(py4cl:defpyfun "sum")
+(py4cl:defpyfun "sum" "" :lisp-fun-name "SUM")
 (deftest defpyfun-sum (pytests)
   (assert-equalp 6
       (sum '(2 1 3))))
