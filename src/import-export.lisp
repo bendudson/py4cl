@@ -66,6 +66,11 @@ def _py4cl_non_callable(ele):
                  ", _py4cl_non_callable)]")))
     (if as-vector slot-vector (coerce slot-vector 'list))))
 
+(defun builtin-p (pymodule-name)
+  "Some builtin functions like 'sum' do not take keyword args."
+  (or (null pymodule-name)
+      (string= "" pymodule-name)))
+
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
 ;; to the user.
@@ -105,8 +110,7 @@ Keywords:
   (python-start-if-not-alive)
   (pyexec "import inspect")
   (unless (or called-from-defpymodule
-              (null pymodule-name)
-              (string= "" pymodule-name))
+              (builtin-p pymodule-name))
     (if import-module
         (pyexec "import " pymodule-name)
         (pyexec "from " pymodule-name " import " fun-name " as " as)))
@@ -118,16 +122,17 @@ Keywords:
           (cond ((pyeval "inspect.isfunction(" fullname ")") 'function)
                 ((pyeval "inspect.isclass(" fullname ")") 'class)
                 (t t)))
-         (fun-symbol (ecase callable-type
-                       (class (intern (if (or rename-lisp-fun-name
-					      called-from-defpymodule)
-                                          (concatenate 'string
-                                                       lisp-fun-name "/CLASS")
-                                          lisp-fun-name)
-                                      lisp-package))
-                       (function (intern lisp-fun-name lisp-package))
-                       (t (intern (get-unique-symbol lisp-fun-name lisp-package)
-				  lisp-package))))
+         (fun-symbol (if (not rename-lisp-fun-name)
+                         (intern lisp-fun-name lisp-package)
+                         (ecase callable-type
+                           (class (intern (if called-from-defpymodule
+                                              (concatenate 'string
+                                                           lisp-fun-name "/CLASS")
+                                              lisp-fun-name)
+                                          lisp-package))
+                           (function (intern lisp-fun-name lisp-package))
+                           (t (intern (get-unique-symbol lisp-fun-name lisp-package)
+                                      lisp-package)))))
          ;; later, specialize further
          (raw-arg-list (get-arg-list fullname))
          (fun-args-with-defaults
@@ -139,7 +144,8 @@ Keywords:
                                 ;; to avoid being interpreted as a function
                                 ;; are there other cases this misses out?
                                 (second str-val))))))
-         (parameter-list (if fun-args-with-defaults
+         (parameter-list (if (and fun-args-with-defaults
+                                 (not (builtin-p pymodule-name)))
                              (cons '&key
                                    fun-args-with-defaults)
                              '(&rest args)))
@@ -156,7 +162,7 @@ Keywords:
                     `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
        (defun ,fun-symbol (,@parameter-list)
               ,(or fun-doc "Python function")
-              ,(if fun-args-with-defaults
+              ,(if (and fun-args-with-defaults (not (builtin-p pymodule-name)))
                    `(funcall #'pycall ,fullname ,@pass-list)
                    `(apply #'pycall ,fullname args)))
        ,(when called-from-defpymodule
