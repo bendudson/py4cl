@@ -103,10 +103,10 @@ Keywords:
   ;; (check-type pymodule-name string) ;; (or nil string)
   ;; (check-type as string) ;; (or nil string)?
   (python-start-if-not-alive)
+  (pyexec "import inspect")
   (unless (or called-from-defpymodule
               (null pymodule-name)
               (string= "" pymodule-name))
-    (pyexec "import inspect")
     (if import-module
         (pyexec "import " pymodule-name)
         (pyexec "from " pymodule-name " import " fun-name " as " as)))
@@ -236,8 +236,8 @@ is NIL."
                                         :called-from-defpymodule t))))
        ,(unless is-submodule
           ;; Several symbols are introduced "somewhere" that are not functions
-          `(cl:mapc #'unintern (apropos-list ,lisp-package))
-          t))))
+          `(cl:mapc #'unintern (apropos-list ,lisp-package)))
+       t)))
 
 (defmacro defpyfuns (&rest args)
   "Each ARG is supposed to be a 2-3 element list of 
