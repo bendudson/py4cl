@@ -35,15 +35,14 @@ script:
   - cl -e "(in-package :cl-user)
            (ql:quickload :py4cl)
            (ql:quickload :py4cl/tests)
-
+           ;; (cconfig-var pycmd) is set from .config file, in "do-after-load"
            (if (or
                  (let ((report (py4cl/tests:run)))
                    (when (or (plusp (slot-value report 'clunit::failed))
                              (plusp (slot-value report 'clunit::errors)))
                      (princ report)))
-                 (let ((*config* ((PYCMD . \"python3\"))))
-                   (let ((report (py4cl/tests:run)))
+                 (let ((report (py4cl/tests:run)))
                      (when (or (plusp (slot-value report 'clunit::failed))
                                (plusp (slot-value report 'clunit::errors)))
-                       (princ report)))))
-                (uiop:quit 1))"
+                       (princ report))))
+               (uiop:quit 1))"
