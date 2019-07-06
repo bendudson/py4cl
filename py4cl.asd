@@ -1,12 +1,16 @@
-;;;; py4cl.asd
+;;;; Py4cl.asd
 
 (asdf:defsystem "py4cl"
   :serial t
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ("trivial-garbage" "iterate" "numpy-file-format" "cl-json"
-				 "bordeaux-threads")
+  :depends-on ("trivial-garbage"
+               "iterate"
+               "cl-json"
+               "bordeaux-threads"
+               "parse-number"
+               "numpy-file-format")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")

@@ -70,8 +70,7 @@ Anything in ARGS which is not a string is passed through PYTHONIZE
         (str (apply #'concatenate 'string
 		    (loop for val in args
 		       collecting (if (or (not (stringp val))
-					  (realp (ignore-errors
-						   (read-from-string val)))) 
+					  (realp (ignore-errors (parse-number:parse-number val)))) 
 				      (pythonize val)  ;; #C(1 0) still  escapes
 				      val)))))
     ;; Write "x" if exec, otherwise "e"
