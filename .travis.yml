@@ -27,7 +27,7 @@ matrix:
     #- env: LISP=ccl
 
 install:
-  - git clone --depth=1 https://github.com/marcoheisig/numpy-file-format.git
+  - git clone --depth=1 https://github.com/digikar99/numpy-file-format.git
   - ./install.sh
   #- curl https://raw.githubusercontent.com/luismbo/cl-travis/master/install.sh | bash  
     
