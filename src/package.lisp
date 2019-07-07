@@ -13,20 +13,22 @@
    #:pyinterrupt)
   (:export ; callpython
    #:pyerror
+   #:raw-pyeval
+   #:raw-pyexec
    #:pyeval
    #:pyexec
    #:pycall
    #:pycall-async
    #:pymethod
-   #:chain
-   #:pysetf
-   #:remote-objects
-   #:remote-objects*
    #:pycall-monitor
    #:pymethod-monitor
    #:pygenerator
    #:pyslot-value
-   #:pyhelp)
+   #:pyhelp
+   #:chain
+   #:pysetf
+   #:remote-objects
+   #:remote-objects*)
   (:export ; import-export
    #:pymethod-list
    #:pyslot-list

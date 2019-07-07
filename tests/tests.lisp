@@ -259,7 +259,7 @@
   (py4cl:export-function
    (lambda () (py4cl:pyeval "42"))
    "test")
-  (assert-equalp 42
+  (assert-equalp "42"
       (py4cl:pyeval "test()")))
 
 ;; Hash-table support
