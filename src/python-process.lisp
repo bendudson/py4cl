@@ -17,8 +17,6 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  (format t "Launching ~D ~D...~%" command
-	  (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
   (setf *python*
         (uiop:launch-program
          (concatenate 'string
