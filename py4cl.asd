@@ -10,6 +10,7 @@
                "cl-json"
                "bordeaux-threads"
                "parse-number"
+               "uiop"
                "numpy-file-format")
   :pathname #P"src/"
   :serial t
