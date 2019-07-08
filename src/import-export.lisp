@@ -35,18 +35,44 @@
                      symbol-name "/1")
         symbol-name)))
 
-(defun get-arg-list (fun-name)
-  (let* ((signature-dict
-          (ignore-errors (pyeval "dict(inspect.signature(" fun-name ").parameters)"))))
-    (unless signature-dict (return-from get-arg-list signature-dict))
-    (iter (initially (remhash "kwargs" signature-dict)
-                     (remhash "args" signature-dict))
-          (for (key val) in-hashtable signature-dict)
+
+;; possible due to python!
+;; https://stackoverflow.com/questions/2677185/how-can-i-read-a-functions-signature-including-default-argument-values
+(defun get-arg-list (fullname lisp-package)
+  "Returns a list of two lists: PARAMETER-LIST and PASS_LIST"
+  (let* ((signature (ignore-errors (pyeval "inspect.signature(" fullname ")")))
+         ;; errors could be value error or type error
+         (pos-only (find #\/ (pycall 'str signature)))
+         ;; we are ignoring futther keyword args
+         (sig-dict (if signature
+                       (pyeval "dict(" signature ".parameters)")
+                       (make-hash-table)))
+         (default-return (list '(&rest args)
+                               `(apply #'pycall ,fullname args))))
+    (iter (for (key val) in-hashtable sig-dict)
           (for name = (pyeval val ".name"))
           (for default = (pyeval val ".default"))
-          (when (or (some #'upper-case-p name) (typep default 'python-object))
-            (return-from get-arg-list '()))
-          (collect (list name default)))))
+          (when (or (some #'upper-case-p name)
+                    (typep default 'python-object)
+                    (find #\* (pyeval "str(" val ".default)")))
+            (return-from get-arg-list default-return))
+          (collect (list (intern (lispify-name name) lisp-package)
+                         (if (or (symbolp default) (listp default))
+                             `',default
+                             default))
+            into parameter-list)
+          (collect (if pos-only
+                       (intern (lispify-name name) lisp-package)
+                       (list (intern (lispify-name name) :keyword)
+                             (intern (lispify-name name) lisp-package)))
+            into pass-list)
+          (finally 
+           (return-from get-arg-list
+             (cond ((null pass-list)  default-return)
+                   (pos-only (list `(&optional ,@parameter-list)
+                                   `(pycall ,fullname ,@pass-list)))
+                   (t (list `(&key ,@parameter-list)
+                            `(pycall ,fullname ,@(apply #'append pass-list))))))))))
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
@@ -132,41 +158,20 @@ Keywords:
                                           lisp-package))
                            (function (intern lisp-fun-name lisp-package))
                            (t (intern (get-unique-symbol lisp-fun-name lisp-package)
-                                      lisp-package)))))
-         ;; later, specialize further
-         (raw-arg-list (get-arg-list fullname))
-         (fun-args-with-defaults
-          (mapcar-> raw-arg-list
-                    (lambda (str-val)
-                      (list (intern (lispify-name (first str-val)) lisp-package)
-                            (if (or (symbolp (second str-val)) (listp (second str-val)))
-                                `',(second str-val)
-                                ;; to avoid being interpreted as a function
-                                ;; are there other cases this misses out?
-                                (second str-val))))))
-         (parameter-list (if (and fun-args-with-defaults
-                                 (not (builtin-p pymodule-name)))
-                             (cons '&key
-                                   fun-args-with-defaults)
-                             '(&rest args)))
-         (pass-list (iter (for (actual-value-symbol _) in fun-args-with-defaults)
-                          (for (name __) in raw-arg-list)
-                          (collect (intern (lispify-name name) :keyword))
-                          (collect actual-value-symbol))))
-    `(progn
-       ,@(unless called-from-defpymodule
-           `((python-start-if-not-alive)
-             ,(unless (or (null pymodule-name) (string= "" pymodule-name))
-                (if import-module
-                    `(pyexec "import " ,pymodule-name)
-                    `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
-       (defun ,fun-symbol (,@parameter-list)
-              ,(or fun-doc "Python function")
-              ,(if (and fun-args-with-defaults (not (builtin-p pymodule-name)))
-                   `(funcall #'pycall ,fullname ,@pass-list)
-                   `(apply #'pycall ,fullname args)))
-       ,(when called-from-defpymodule
-         `(export ',fun-symbol ,lisp-package)))))
+                                      lisp-package)))))) ;; later, specialize further
+    (destructuring-bind (parameter-list pass-list) (get-arg-list fullname (find-package lisp-package))
+      `(progn
+         ,@(unless called-from-defpymodule
+             `((python-start-if-not-alive)
+               ,(unless (or (null pymodule-name) (string= "" pymodule-name))
+                  (if import-module
+                      `(pyexec "import " ,pymodule-name)
+                      `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
+         (defun ,fun-symbol (,@parameter-list)
+           ;; ,(or fun-doc "Python function")
+           ,pass-list)
+         ,(when called-from-defpymodule
+            `(export ',fun-symbol ,lisp-package))))))
 
 
 (defmacro defpysubmodules (pymodule-name as)
@@ -233,8 +238,8 @@ is NIL."
          (if as
              `(pyexec "import " ,pymodule-name " as " ,as)
              `(pyexec "import " ,pymodule-name)))
-       ,@(list (macroexpand `(defpackage ,lisp-package)))
-       ,(if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
+       ,(macroexpand `(defpackage ,lisp-package))
+       ,@(if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
        ,@(iter (for fun-name in-vector fun-names)
                (collect (macroexpand `(defpyfun
                                           ,fun-name ,(or as pymodule-name)
