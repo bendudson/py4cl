@@ -74,8 +74,6 @@
   "Intended as an abstraction to RAW-PYEVAL and RAW_PYEXEC.
 Passes strings as they are, without any 'pythonize'ation."
   (python-start-if-not-alive)
-  (delete-freed-python-objects)
-  (delete-numpy-pickle-arrays)
   (let ((stream (uiop:process-info-input *python*))
         (str (apply #'concatenate 'string strings)))
     (write-char cmd-char stream)
@@ -117,11 +115,14 @@ will result in 'sys' name not defined PYERROR."
 Eg.
   > (let ((a 5)) (pyeval a \"*\" a)) 
   25"
-  ;; (print args)
+  (delete-freed-python-objects) ; delete before pythonizing
+  (delete-numpy-pickle-arrays)
   (apply #'raw-pyeval (mapcar #'pythonize-if-needed args)))
 
 (defun pyexec (&rest args)
   "Calls python exec on args; PYTHONIZEs arg if it satisfies PYTHONIZEP."
+  (delete-freed-python-objects) ; delete before pythonizing
+  (delete-numpy-pickle-arrays)
   (apply #'raw-pyexec (mapcar #'pythonize-if-needed args)))
 
 ;; One argument for the name (setf pyeval) is that it sets the "place" returned
@@ -160,7 +161,7 @@ FUN-NAME can be a string, symbol or python-object.
     PYTHONIZE-NAME on it. 
   FUN-NAME is NOT PYTHONIZEd if it is a string."
   (python-start-if-not-alive) ; should delete here? what about async?
-  (delete-freed-python-objects)
+  (delete-freed-python-objects) ; delete before pythonizing
   (delete-numpy-pickle-arrays)
   (let ((stream (uiop:process-info-input *python*)))
     (write-char #\f stream) ; function call
