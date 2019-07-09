@@ -54,7 +54,7 @@
           (for default = (pyeval val ".default"))
           (when (or (some #'upper-case-p name)
                     (typep default 'python-object)
-                    (find #\* (pyeval "str(" val ".default)")))
+                    (find #\* (pyeval "str(" val ")")))
             (return-from get-arg-list default-return))
           (collect (list (intern (lispify-name name) lisp-package)
                          (if (or (symbolp default) (listp default))
