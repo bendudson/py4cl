@@ -175,17 +175,18 @@ Arguments:
          ,(when called-from-defpymodule `(export ',fun-symbol (find-package ,lisp-package)))))))
 
 
-(defmacro defpysubmodules (pymodule-name as)
+(defmacro defpysubmodules (pymodule-name lisp-package)
   (let ((submodules
          (py4cl:pyeval "[(modname, ispkg) for importer, modname, ispkg in "
                        "pkgutil.iter_modules("
-                       (or as pymodule-name)
+                       pymodule-name
                        ".__path__)]")))
     (iter (for (submodule has-submodules) in-vector submodules)
           (collect `(defpymodule ,(concatenate 'string
                                                pymodule-name "." submodule)
                         ,has-submodules
-                      :as ,(when as (concatenate 'string as "." submodule))
+                      :lisp-package ,(concatenate 'string lisp-package "."
+                                                  (lispify-name submodule))
                       :is-submodule t)))))
 
 (defun mapcar-> (list &rest functions)
@@ -197,9 +198,8 @@ Arguments:
 (defmacro defpymodule (pymodule-name &optional import-submodules
                        &key
                          (is-submodule nil) ;; used by defpysubmodules
-                         as
-                         (lisp-package (lispify-name (or as pymodule-name)))
-                         (reload nil))
+                         (lisp-package (lispify-name pymodule-name))
+                         (reload nil) (safety t))
   "Import a python module (and its submodules) lisp-package Lisp package(s). 
 Example:
   (py4cl:defpymodule \"math\" :lisp-package \"M\")
@@ -211,9 +211,9 @@ Arguments:
   IMPORT-SUBMODULES: leave nil for purposes of speed, if you won't use the  
     submodules
   IS-SUBMODULE: used by internal macro defpysubmodules
-  AS: name of the module after importing in python
   LISP-PACKAGE: lisp package, in which to intern (and export) the callables
-  RELOAD: whether to redefine and reimport"
+  RELOAD: whether to redefine and reimport
+  SAFETY: value of safety to pass to defpyfun; see defpyfun"
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
   ;; (check-type as (or nil string)) ;; this doesn't work!
   (check-type lisp-package string)
@@ -224,17 +224,14 @@ Arguments:
             (return-from defpymodule "Package already exists."))))
   
   (python-start-if-not-alive) ; Ensure python is running
-  (unless is-submodule
-    (if as
-        (pyexec "import " pymodule-name " as " as)
-        (pyexec "import " pymodule-name)))
+  (unless is-submodule (pyexec "import " pymodule-name))
 
   (pyexec "import inspect")
   (pyexec "import pkgutil")
   
   ;; fn-names  All callables whose names don't start with "_" 
   (let ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
-                           (or as pymodule-name)
+                           pymodule-name
                            ", callable) if name[0] != '_']"))
         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
         ;; so that the result reflects changes to the readtable
@@ -242,22 +239,14 @@ Arguments:
         (exporting-package
 	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
     `(progn
-       (python-start-if-not-alive) ; Ensure python is running at execution as well!
-       ,(unless is-submodule
-         (if as
-             `(pyexec "import " ,pymodule-name " as " ,as)
-             `(pyexec "import " ,pymodule-name)))
        ,(macroexpand `(defpackage ,lisp-package (:use)))
-       ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
+       ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
        ,@(iter (for fun-name in-vector fun-names)
                (collect (macroexpand `(defpyfun
-                                          ,fun-name ,(or as pymodule-name)
+                                          ,fun-name ,pymodule-name
                                         :lisp-package ,exporting-package
-                                        :called-from-defpymodule t))))
-       ;; ,(unless is-submodule
-          ;; Several symbols are introduced "somewhere" that are not functions
-          ;; `(cl:mapc #'unintern (apropos-list ,lisp-package)))
-       
+                                        :called-from-defpymodule t
+                                        :safety ,safety))))
        t)))
 
 (defmacro defpyfuns (&rest args)
