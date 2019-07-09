@@ -500,6 +500,17 @@ class testclass:
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
 
+(eval-when (:compile-toplevel) (py4cl:pyexec "
+def foo(A, b):
+  return True"))
+(py4cl:defpyfun "foo")
+(deftest defpyfun-names (import-export)
+  (py4cl:pyexec "
+def foo(A, b):
+  return True")
+  (assert-condition py4cl:pyerror (foo :a 4 :b 3))
+  (assert-true (foo 4 3)))
+
 ;; Call python during callback
 (deftest python-during-callback (callpython-utility)
   (py4cl:export-function
