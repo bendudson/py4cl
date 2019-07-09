@@ -111,7 +111,6 @@ def _py4cl_non_callable(ele):
 (defmacro defpyfun (fun-name &optional pymodule-name
                     &key
                       (as fun-name)
-                      (import-module nil) ; see above
                       (lisp-fun-name (lispify-name as))
                       (lisp-package *package*)
                       (called-from-defpymodule nil)
@@ -123,12 +122,16 @@ Example
   (py4cl:defpyfun \"math.sqrt\")
   (math.sqrt 42) -> 6.4807405
 
-Keywords:
-  LISP-FUN-NAME is a string, denoting the symbol to which the function is assigned.
-  DOCSTRING is a string which becomes the function docstring
-  FROM specifies a pymodule to load the function from. This will cause the python
-    pymodule to be imported into the python session.
-"
+Arguments:
+  FUN-NAME: name of the function in python, before import
+  PYMODULE-NAME: name of the module containing FUN-NAME
+  AS: name of the function in python, after import
+  LISP-FUN-NAME: name of the lisp symbol to which the function is bound*
+  LISP-PACKAGE: package (not its name) in which LISP-FUN-NAME will be interned
+  SAFETY: if T, adds an additional line in the function asking to import the 
+    package or function, so that the function works even after PYSTOP is called.
+    However, this increases the overhead of stream communication, and therefore,
+    can reduce speed."
   (check-type fun-name string)
   (check-type lisp-fun-name string)
   (check-type lisp-package package)
@@ -138,12 +141,10 @@ Keywords:
   (pyexec "import inspect")
   (unless (or called-from-defpymodule
               (builtin-p pymodule-name))
-    (if import-module
-        (pyexec "import " pymodule-name)
-        (pyexec "from " pymodule-name " import " fun-name " as " as)))
-  (let* ((fullname (if (or import-module called-from-defpymodule)
+    (pyexec "from " pymodule-name " import " fun-name " as " as))
+  (let* ((fullname (if called-from-defpymodule
                        (concatenate 'string pymodule-name "." fun-name)
-                       fun-name))
+                       (or as fun-name)))
          (fun-doc (pyeval fullname ".__doc__"))
          (callable-type
           (cond ((pyeval "inspect.isfunction(" fullname ")") 'function)
@@ -165,12 +166,11 @@ Keywords:
          (defun ,fun-symbol (,@parameter-list)
            ,(or fun-doc "Python function")
            ,(when safety
-              `(progn
-                 (python-start-if-not-alive)
-                 ,(unless (or (null pymodule-name) (string= "" pymodule-name))
-                    (if (or import-module called-from-defpymodule)
-                        `(pyexec "import " ,pymodule-name)
-                        `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
+              (if (builtin-p pymodule-name)
+                  `(python-start-if-not-alive)
+                  (if called-from-defpymodule
+                      `(pyexec "import " ,pymodule-name)
+                      `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
            ,pass-list)
          ,(when called-from-defpymodule `(export ',fun-symbol (find-package ,lisp-package)))))))
 
@@ -194,18 +194,26 @@ Keywords:
       list
       (apply #'mapcar-> (mapcar (car functions) list) (cdr functions))))
 
-(defmacro defpymodule (pymodule-name has-submodules
+(defmacro defpymodule (pymodule-name &optional import-submodules
                        &key
                          (is-submodule nil) ;; used by defpysubmodules
                          as
                          (lisp-package (lispify-name (or as pymodule-name)))
                          (reload nil))
   "Import a python module (and its submodules) lisp-package Lisp package(s). 
-  Example:
-    (py4cl:defpymodule \"math\" :lisp-package \"m\")
-    (m:sqrt 4)   ; => 2.0
+Example:
+  (py4cl:defpymodule \"math\" :lisp-package \"M\")
+  (m:sqrt 4)   ; => 2.0
 \"Package already exists.\" is returned if the package exists and :RELOAD 
-is NIL."
+is NIL.
+Arguments:
+  PYMODULE-NAME: name of the module in python, before importing
+  IMPORT-SUBMODULES: leave nil for purposes of speed, if you won't use the  
+    submodules
+  IS-SUBMODULE: used by internal macro defpysubmodules
+  AS: name of the module after importing in python
+  LISP-PACKAGE: lisp package, in which to intern (and export) the callables
+  RELOAD: whether to redefine and reimport"
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
   ;; (check-type as (or nil string)) ;; this doesn't work!
   (check-type lisp-package string)
@@ -240,7 +248,7 @@ is NIL."
              `(pyexec "import " ,pymodule-name " as " ,as)
              `(pyexec "import " ,pymodule-name)))
        ,(macroexpand `(defpackage ,lisp-package (:use)))
-       ,@(if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
+       ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
        ,@(iter (for fun-name in-vector fun-names)
                (collect (macroexpand `(defpyfun
                                           ,fun-name ,(or as pymodule-name)

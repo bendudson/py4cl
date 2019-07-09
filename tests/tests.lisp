@@ -486,13 +486,19 @@ class testclass:
 
 ;; more extensive tests for defpyfun and defpymodule are required
 (py4cl:defpyfun "sum" "" :lisp-fun-name "PYSUM")
-(deftest defpyfun-sum (import-export)
-  (assert-equalp 6
-      (pysum '(2 1 3))))
+(py4cl:defpyfun "Fraction" "fractions")
+(py4cl:defpyfun "gcd" "fractions" :as "g")
+(deftest defpyfun (import-export)
+  (py4cl:pystop) ; taking "safety" into account
+  (assert-equalp 1/2 (fraction :numerator 1 :denominator 2))
+  (py4cl:pystop) ; taking "safety" into account
+  (assert-equalp 1 (g :a 5 :b 6))
+  (assert-equalp 1 (py4cl:pycall "g" 5 6)) ; not safe!
+  (py4cl:pystop) ; taking "safety" into account
+  (assert-equalp 6 (pysum '(2 1 3))))
 
 (deftest defpymodule-math (import-export)
-  ;; (py4cl:pyexec "import math")
-  (assert-equalp (cos 45) (math::cos 45)))
+  (assert-equalp (cos 45) (math:cos 45)))
 
 ;; Call python during callback
 (deftest python-during-callback (callpython-utility)
