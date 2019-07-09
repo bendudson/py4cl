@@ -491,8 +491,8 @@ class testclass:
       (pysum '(2 1 3))))
 
 (deftest defpymodule-math (import-export)
-  (py4cl:pyexec "import math")
-  (assert-equalp (cos 45) (math:cos 45)))
+  ;; (py4cl:pyexec "import math")
+  (assert-equalp (cos 45) (math::cos 45)))
 
 ;; Call python during callback
 (deftest python-during-callback (callpython-utility)

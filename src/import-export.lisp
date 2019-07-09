@@ -115,7 +115,8 @@ def _py4cl_non_callable(ele):
                       (lisp-fun-name (lispify-name as))
                       (lisp-package *package*)
                       (called-from-defpymodule nil)
-                      (rename-lisp-fun-name nil))
+                      (rename-lisp-fun-name nil)
+                      (safety t))
   "Defines a function which calls python
 Example
   (py4cl:pyexec \"import math\")
@@ -161,17 +162,17 @@ Keywords:
                                       lisp-package)))))) ;; later, specialize further
     (destructuring-bind (parameter-list pass-list) (get-arg-list fullname (find-package lisp-package))
       `(progn
-         ,@(unless called-from-defpymodule
-             `((python-start-if-not-alive)
-               ,(unless (or (null pymodule-name) (string= "" pymodule-name))
-                  (if import-module
-                      `(pyexec "import " ,pymodule-name)
-                      `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
          (defun ,fun-symbol (,@parameter-list)
-           ;; ,(or fun-doc "Python function")
+           ,(or fun-doc "Python function")
+           ,(when safety
+              `(progn
+                 (python-start-if-not-alive)
+                 ,(unless (or (null pymodule-name) (string= "" pymodule-name))
+                    (if (or import-module called-from-defpymodule)
+                        `(pyexec "import " ,pymodule-name)
+                        `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as)))))
            ,pass-list)
-         ,(when called-from-defpymodule
-            `(export ',fun-symbol ,lisp-package))))))
+         ,(when called-from-defpymodule `(export ',fun-symbol (find-package ,lisp-package)))))))
 
 
 (defmacro defpysubmodules (pymodule-name as)
@@ -238,16 +239,17 @@ is NIL."
          (if as
              `(pyexec "import " ,pymodule-name " as " ,as)
              `(pyexec "import " ,pymodule-name)))
-       ,(macroexpand `(defpackage ,lisp-package))
+       ,(macroexpand `(defpackage ,lisp-package (:use)))
        ,@(if has-submodules (macroexpand `(defpysubmodules ,pymodule-name ,as)))
        ,@(iter (for fun-name in-vector fun-names)
                (collect (macroexpand `(defpyfun
                                           ,fun-name ,(or as pymodule-name)
                                         :lisp-package ,exporting-package
                                         :called-from-defpymodule t))))
-       ,(unless is-submodule
+       ;; ,(unless is-submodule
           ;; Several symbols are introduced "somewhere" that are not functions
-          `(cl:mapc #'unintern (apropos-list ,lisp-package)))
+          ;; `(cl:mapc #'unintern (apropos-list ,lisp-package)))
+       
        t)))
 
 (defmacro defpyfuns (&rest args)

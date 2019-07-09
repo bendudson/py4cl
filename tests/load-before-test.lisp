@@ -1,1 +1,1 @@
-(py4cl:defpymodule "math" nil) 
+(py4cl:defpymodule "math" nil :reload t) 
