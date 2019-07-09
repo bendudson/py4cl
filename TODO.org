@@ -1,9 +1,13 @@
-* Urgent
-- most builtin modules do not support keyword args
-- more documentation (quite done; not committed)
-- writing test code for pycall-monitor - see src/does-not-work.lisp
+* For Release: automate the following?
+- pyinterrupt, pycall-monitor, pymethod-monitor: check whether interrupting
+  works "as expected", and future commands continue to work; check if 
+  monitor works "as expected"
+- save-config, load-config, (setf config-var): check if changing the value
+  in lisp changes the value in python
+- discuss the following: issues-for-chain.lisp tests/does-not-work.lisp, src/chain.lisp
+- more testing may be
 
-* Optional
+* Future Work
 - importing arguments for more callable objects - like ufunc of numpy
   Further, note that some (only some builtin ones) python functions like "sum"
   do not take keyword args!
@@ -22,14 +26,3 @@
 - cleaning up documentation while defining functions - many python functions 
   have documentation intended for use directly in md/rst files
 
-* Manual Testing for:
-- pyinterrupt, pycall-monitor, pymethod-monitor: check whether interrupting
-  works "as expected", and future commands continue to work; check if 
-  monitor works "as expected"
-- save-config, load-config, (setf config-var): check if changing the value
-  in lisp changes the value in python
-
-* No testing for
-
-* For Release 
-- review and may be, add tests

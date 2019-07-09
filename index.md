@@ -16,30 +16,20 @@ This fork is available on github at [digikar99/py4cl](https://github.com/digikar
 
 Please report the issues on [github](https://github.com/bendudson/cl-digikar-utilities/issues).
 
-(Shorter) documentation for almost all of these functions is available as docstrings as well.
-
-# Limitations of this Documentation
-
-- `pyerror` and [some more useful functions and macros](#some-more-useful-functions-and-macros) has not been documented here yet.
-- No mention about using multiple python processes.
-- How useful / redundant is `pysetf`, `chain`? ([Some more functions](#some-more-functions-undocumented))
-- How does one use `remote-objects` or `remote-objects*`?
+Documentation for almost all of these functions is available as docstrings as well.
 
 # Highlights and Limitations of `py4cl`
 
-- Use python functions and modules from lisp. See [Defining python functions and modules](#defining-python-functions-and-modules).
-- [`pycmd`](#pycmd): Choose which python binary to use.
-- About 7500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
-But this shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :).)
-- Multiple python processes (not documented here) - parallel execution?
-- stderr is not returned; though errors are returned
-- portability status (across CL implementations, linux distributions as well as operating systems) of this fork is not known. (It is known to work on 18.04 Ubuntu 64-bit SBCL.)
-- lack of integration with CL's methods and CLOS
-- pyslot-list and pymethod-list are unoptimized for use; currently, intended for use on REPL that en-masse
-- large arrays (100M in 2 sec!) can be transferred using numpy-file-format (see [initialize](#initialize); large strings cannot be
+- Use python functions and modules from lisp. See [Defining python functions and modules](#defining-python-functions-and-modules). An effort is made to obtain the signatures of the python functions using `inspect.signature`.
+- [`pycmd`](#pycmd): Choose which python binary to use. Works with miniconda.
+- About 6000 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
+this shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
+- Large arrays (100M in 2 sec!) can be transferred using numpy-file-format (see [initialize](#initialize); large strings cannot be; though, there is the remote-objects/* (undocumented here).
 - See [TODO].
+- Multiple python processes (not documented here) - parallel execution?
+- Stderr is not returned; though errors are returned
+- Tested on SBCL and CCL. 
 
---- 
 
 # Installation
 
@@ -59,9 +49,9 @@ On the CL side:
 
 On python side:
 
-- pkgutil
+- numpy (optional)
 
-(other packages should be  available in a standard python distribution - tested with CPython.)
+(other packages should be available in a standard python distribution - tested with CPython.)
 
 ## Installation
 
@@ -113,9 +103,7 @@ CL-USER> (setf (config-var 'py4cl:pycmd) "python")
 "python"
 ```
 
-Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former, as well as asks the python process to load the config, from the config file.
-
----
+Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former unless it is `pycmd`, as well as asks the python process to load the config, from the config file.
 
 
 # Examples and Documentation
@@ -135,7 +123,7 @@ CL-USER> (config-var 'pycmd)
 "python"
 ```
 
-Also see [config-var](##config--config-var).
+Also see [config-var](#config--config-var).
 
 ### `pyversion-info`
 ```lisp
@@ -155,8 +143,6 @@ Equivalent of `slime-cd`, since python is a separate process.
 
 ### Other useful functions
 
-The documentation for these can be viewed by the usual `(describe 'symbol-name)`.
-
 #### `pystart`
 #### `pystop`
 #### `python-alive-p`
@@ -170,6 +156,18 @@ Unlike lisp, python (and most other languages) make a distinction between *state
 A general rule of thumb from there is: if you can print it, or assign it to a variable, then it's an expression, otherwise it's a statement.
 
 Both `pyeval` and `pyexec` take any type of arguments. The `arg` is `pythonize`d if the `arg` is not a `string`, or it is a `string` that can be read into a `real`.
+
+### `raw-pyeval`
+`(raw-pyeval &rest strings)`
+
+Concatenates the strings and sends them to the python process for `eval`uation. The concatenation should be a valid python expression. Returns the result of evaluating the expression.
+
+### `raw-pyexec`
+`(raw-pyexec &rest strings)`
+
+Concatenates the strings and sends them to the python process for `eval`uation. The concatenation should be a valid python statement. Returns nil.
+
+Often times, the two commands above would be tedious - since you'd need to convert objects into their string representations every time. To avoid this hassle, there are the following useful functions.
 
 ### `pyeval`
 `(pyeval &rest args)`
@@ -231,13 +229,14 @@ See [Doing arbitrary things in python](#doing-arbitrary-things-in-python) to lea
 
 Rather, we define functions that call python functions.
 
-Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. 
+Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. Also see [Name Mapping](#name-mapping). 
 
 ### `defpyfun`
 ```lisp
-(defpyfun fun-name pymodule-name &key (as fun-name) 
-  (import-module nil) (lisp-fun-name (lispify-name as))
-  (lisp-package *package*) (called-from-defpymodule nil))
+(defpyfun fun-name &optional pymodule-name &key 
+  (as fun-name) (lisp-fun-name (lispify-name as))
+  (lisp-package *package*) (called-from-defpymodule nil)
+  rename-lisp-fun-name (safety t)
 ```
 `lisp-fun-name` is the name of the symbol that would be `fboundp`ed to the function [that calls the python function].
 
@@ -252,9 +251,11 @@ CL-USER> (inp :shape '(1 2))
    :HANDLE 1849)
 ```
 
+Refer `(describe 'defpyfun)`.
+
 ### `defpymodule`
 ```lisp
-(defpymodule pymodule-name has-submodules &key as
+(defpymodule pymodule-name &optional has-submodules &key as
   (lisp-package (lispify-name (or as pymodule-name)))
   (reload nil))
 ```
@@ -281,6 +282,10 @@ CL-USER> (pycall (kl.advanced-activations:softmax :input-shape '(1 2))
 Note that unlike Common Lisp, python has a single namespace. Therefore, currently,
 to call a callable (in Python) object, but not defined as a function in Common Lisp,
 you'd need to use something like [pycall].
+
+### `defpyfuns`
+
+
 
 ## `pyerror`
 
@@ -369,6 +374,45 @@ CL-USER> (pyslot-value model 'input-shape)
 
 See [pyslot-list](#pyslot-list)
 
+### `pycall-async`
+
+One of the advantages of using streams to communicate with a separate
+python process, is that the python and lisp processes can run at the
+same time. =python-call-async= calls python but returns a closure
+immediately. The python process continues running, and the result can
+be retrieved by calling the returned closure. 
+
+```lisp
+(defparameter thunk (py4cl:python-call-async "lambda x: 2*x" 21))
+
+(funcall thunk)  ; => 42
+```
+
+If the function call requires callbacks to lisp, then these will only
+be serviced when a `py4cl` function is called. In that case the python
+function may not be able to finish until the thunk is called. This
+should not result in deadlocks, because all `py4cl` functions can
+service callbacks while waiting for a result.
+
+### `export-function`
+
+
+Lisp functions can be made available to python code using `export-function`:
+```lisp
+(py4cl:python-exec "from scipy.integrate import romberg")
+
+(py4cl:export-function (lambda (x) (/ (exp (- (* x x)))
+                                      (sqrt pi))) "gaussian")
+
+(py4cl:python-eval "romberg(gaussian, 0.0, 1.0)") ; => 0.4213504
+```
+
+### `pyhelp`
+`(pyhelp python-object)`
+
+Calls python's `help` function on `python-object`. (NOTE: some descriptions, especially
+for modules, are too big to be transferred in a reasonable time.)
+
 ## Generators and Lambdas
 
 ### `pygenerator`
@@ -448,26 +492,254 @@ CL-USER> (pymethod-list (model))
  "save" "save_weights" "set_weights" "summary" "test_on_batch" "to_json"
  "to_yaml" "train_on_batch")
 ```
-
 Optionally, see [pymethod](#pymethod).
 
-## Some more functions (Undocumented)
+## `chain`
 
-### chain
 
-### pysetf
+The interface to python objects is nicer using `chain` (see below):
+```lisp
+(destructuring-bind (fig ax) (plt:subplots)
+  (py4cl:chain ax (plot #(0 1 0 1)))
+  (plt:show)) 
+```
 
-### remote-objects 
+In python it is quite common to apply a chain of method calls, data
+member access, and indexing operations to an object. To make this work
+smoothly in Lisp, there is the `chain` macro (Thanks to @kat-co and
+[[https://common-lisp.net/project/parenscript/reference.html][parenscript]] for the inspiration). This consists of a target object,
+followed by a chain of operations to apply.  For example
+```lisp
+(py4cl:chain "hello {0}" (format "world") (capitalize)) ; => "Hello world"
+```
+which is converted to python `return "hello {0}".format("world").capitalize()`.
 
-### remote-objects*
+The only things which are treated specially by this macro are lists
+and symbols at the top level. The first element of lists are treated as
+python method names, top-level symbols are treated as data
+members. Everything else is evaluated as lisp before being converted
+to a python value.
 
-### export-function
+If the first argument is a list, then it is assumed to be a python
+function to be called; otherwise it is evaluated before converting to
+a python value. For example
+```lisp
+(py4cl:chain (slice 3) stop) ; => 3
+```
 
-### defpyfuns
+is converted to the python `return slice(3).stop`.
 
-### pyhelp
+Symbols as first argument, or arguments to python methods, are
+evaluated, so the following works:
+```lisp
+(let ((format-str "hello {0}")
+      (argument "world"))
+ (py4cl:chain format-str (format argument))) ; => "hello world"
+```
 
-### python-getattr
+Arguments to methods are lisp, since only the top level forms in `chain` are treated specially:
+```lisp
+(py4cl:chain "result: {0}" (format (+ 1 2))) ; => "result: 3"
+```
+
+Indexing with `[]` brackets is commonly used in python, which calls the `__getitem__` method.
+This method can be called like any other method
+
+```lisp
+(py4cl:chain "hello" (__getitem__ 4)) ; => "o"
+```
+
+but since this is a common method an alias `[]` is supported:
+```lisp
+(py4cl:chain "hello" ([] 4)) ; => "o"
+```
+
+which is converted to the python `return "hello"[4]`.
+
+For simple cases where the index is a value like a number or string
+(not a symbol or a list), the brackets can be omitted:
+```lisp
+(py4cl:chain "hello" 4) ; => "o"
+```
+
+Slicing can be done by calling the python `slice` function:
+```lisp
+(py4cl:chain "hello" ([] (py4cl:python-call "slice" 2 4)))  ; => "ll"
+```
+
+which could be imported as a lisp function (see below):
+```lisp
+(py4cl:import-function "slice")
+(py4cl:chain "hello" ([] (slice 2 4))) ; => "ll"
+```
+
+This of course also works with multidimensional arrays:
+```lisp
+(py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2)))  ;=> #(4 5)
+```
+
+Sometimes the python functions or methods may contain upper case
+characters; class names often start with a capital letter. All symbols
+are converted to lower case, but the case can be controlled by passing
+a string rather than a symbol as the first element:
+```lisp
+;; Define a class
+(py4cl:python-exec
+   "class TestClass:
+      def doThing(self, value = 42):
+        return value")
+
+;; Create an object and call the method
+(py4cl:chain ("TestClass") ("doThing" :value 31))  ; => 31
+```
+Note that the keyword is converted, converting to lower case.
+
+Further, there is also `(setf chain)`:
+
+```lisp
+(py4cl:remote-objects*
+  (let ((array (np:zeros '(2 2))))
+    (setf (py4cl:chain array ([] 0 1)) 1.0
+          (py4cl:chain array ([] 1 0)) -1.0)
+    array)) 
+; => #2A((0.0 1.0)
+;        (-1.0 0.0))
+```
+
+Note that this modifies the value in python, so the above example only
+works because =array= is a handle to a python object, rather than an
+array which is stored in lisp. The following therefore does not work:
+```lisp
+(let ((array (np:zeros '(2 2))))
+  (setf (py4cl:chain array ([] 0 1)) 1.0
+        (py4cl:chain array ([] 1 0)) -1.0)
+  array)
+; => #2A((0.0 0.0)
+;        (0.0 0.0))
+```
+
+## `remote-objects(*)`
+`(remote-objects &body body)
+
+If a sequence of python functions and methods are being used to manipulate data,
+then data may be passed between python and lisp. This is fine for small amounts
+of data, but inefficient for large datasets.
+
+The `remote-objects` and `remote-objects*` macros provide `unwind-protect` environments
+in which all python functions return handles rather than values to lisp. This enables
+python functions to be combined without transferring much data.
+
+The difference between these macros is `remote-objects` returns a handle, but
+`remote-objects*` evaluates the result, and so will return a value if possible.
+
+```lisp
+(py4cl:remote-objects (py4cl:python-eval "1+2")) ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
+```
+
+```lisp
+(py4cl:remote-objects* (py4cl:python-eval "1+2")) ; => 3
+```
+
+The advantage comes when dealing with large arrays or other datasets:
+```lisp
+(time (np:sum (np:arange 1000000)))
+; => 3.672 seconds of real time
+;    390,958,896 bytes consed
+```
+
+```lisp
+(time (py4cl:remote-objects* (np:sum (np:arange 1000000))))
+; => 0.025 seconds of real time
+;    32,544 bytes consed
+```
+
+`remote-objects*` returns the result.
+
+Besides this, (see [Setting up](#setting-up).
+
+## `python-getattr`
+
+Lisp structs and class objects can be passed to python, put into data structures and
+returned:
+
+```lisp
+(py4cl:import-function "dict") ; Makes python dictionaries
+
+(defstruct test-struct 
+    x y)
+
+(let ((map (dict :key (make-test-struct :x 1 :y 2))))  ; Make a dictionary, return as hash-map
+  ;; Get the struct from the hash-map, and get the Y slot
+  (test-struct-y
+    (py4cl:chain map "key")))  ; => 2
+```
+
+
+In python this is handled using an object of class `UnknownLispObject`, which
+contains a handle. The lisp object is stored in a hash map
+`*lisp-objects*`. When the python object is deleted, a message is sent to remove
+the object from the hash map.
+
+To enable python to access slots, or call methods on a struct or class, a
+handler function needs to be registered. This is done by providing a method 
+for generic function `python-getattr`. This function will be called when a
+python function attempts to access attributes of an object (`__getattr__`
+method).
+
+```lisp
+;; Define a class with some slots
+(defclass test-class ()
+  ((value :initarg :value)))
+
+;; Define a method to handle calls from python
+(defmethod py4cl:python-getattr ((object test-class) slot-name)
+  (cond
+    ((string= slot-name "value") ; data member
+      (slot-value object 'value))
+    ((string= slot-name "func")  ; method, return a function
+      (lambda (arg) (* 2 arg)))
+    (t (call-next-method)))) ; Otherwise go to next method
+
+(let ((instance (make-instance 'test-class :value 21))) 
+  ;; Get the value from the slot, call the method
+  ;; python: instance.func(instance.value)
+  (py4cl:chain instance (func (py4cl:chain instance value))))  ; => 42
+```
+Inheritance then works as usual with CLOS methods:
+```lisp
+;; Class inheriting from test-class
+(defclass child-class (test-class)
+  ((other :initarg :other)))
+
+;; Define method which passes to the next method if slot not recognised
+(defmethod py4cl:python-getattr ((object child-class) slot-name)
+  (cond
+    ((string= slot-name "other")
+     (slot-value object 'other))
+    (t (call-next-method))))
+
+(let ((object (make-instance 'child-class :value 42 :other 3)))
+  (list 
+    (py4cl:chain object value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
+    (py4cl:chain object other))) ;=> (42 3)
+```
+
+# Testing 
+
+Tests use [https://github.com/tgutu/clunit[[clunit], and run on [https://travis-ci.org/][Travis] using [https://github.com/luismbo/cl-travis][cl-travis]. Most development
+is done under Arch linux with SBCL and Python3. To run the tests
+yourself:
+```lisp
+(asdf:test-system :py4cl)
+```
+or
+
+```lisp
+(ql:quickload :py4cl-tests)
+(py4cl-tests:run)
+```
+
+
 
 
 # Type Mapping and Pythonize
@@ -519,8 +791,32 @@ manipulate the object, and when it is garbage collected the python
 object is also deleted (using the [trivial-garbage](https://common-lisp.net/project/trivial-garbage/) 
 package).
 
+# Name Mapping
 
----
+`defpyfun` takes care to lispify argument names unless some argument has a capital letter, or there exists a keyword argument; in these cases, `(&rest args)`  is used as a parameter list. Now, `defpyfun` relies on `pycall`.
+
+The arguments passed by `pycall` are parsed by the python process: the lisp keywords are converted to their python equivalents. This only entails downcasing the symbol-name of the keywords and replacing hyphens with underscores. Thus, if the function had arguments with capital letters, (currently) it is not possible to pass arguments to such a function as keyword arguments.
+
+```lisp
+CL-USER> (py4cl:pyexec "
+def foo(A, b):
+  return True")
+NIL
+CL-USER> (defpyfun "foo")
+NIL
+CL-USER> (foo :a 4 :b 3)
+; Evaluation aborted on #<PYERROR {100E2AF473}>.
+;; unexpected keyword argument 'a'
+CL-USER> (foo 4 3)
+T
+```
+
+In essence, pythonization of names means: downcasing the symbol names, and replacing the hyphens with underscores. For `fun-names` this is handled in callpython.lisp. For argument names, downcasing is done by `pythonize` on symbols, and hyphen to underscore replacement in done in python process.
+
+Lispification of python names is conditional, in that: if the name is a function name or module name, that is to be interned, then `CamelCase` and `joint_words` are converted to `camel-case` and `joint-words` For argument names, this is only done, if they do not have capital letters. This process is handled in import-export.lisp.
+
+
+
 
 # What remains?
 

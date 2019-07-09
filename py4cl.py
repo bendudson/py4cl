@@ -362,7 +362,7 @@ def return_value(value):
     finally:
         sys.stdout = redirect_stream
 
-def pythonize(value):
+def pythonize(value): # assumes the symbol name is downcased by the lisp process
     """
     Convertes the value (Symbol) to python conventioned strings.
     In particular, replaces "-" with "_"
