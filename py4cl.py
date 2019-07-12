@@ -205,7 +205,9 @@ try:
         array([[1, 2],     => '#2A((1 2) (3 4))'
               [3, 4]])
         """
-        if obj.size > config["numpyPickleLowerBound"]:
+        if "numpyPickleLowerBound" in config and \
+           "numpyPickleLocation" in config and \
+           obj.size > config["numpyPickleLowerBound"]:
             numpy_pickle_location = config["numpyPickleLocation"]
             numpy.save(numpy_pickle_location, obj, allow_pickle = True)
             return ('#.(numpy-file-format:load-array "'

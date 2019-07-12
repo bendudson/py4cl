@@ -29,9 +29,7 @@
 
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl."
-  (format t "~D" (run-suite 'py4cl :use-debugger interactive?))
-  (when (py4cl:config-var 'py4cl:numpy-pickle-location)
-    (format t "~D" (run-suite 'pickle :use-debugger interactive?))))
+  (run-suite 'py4cl :use-debugger interactive?))
 
 ;; ======================== PROCESS-BASIC =====================================
 
@@ -725,10 +723,21 @@ a = Test()")
 ;; ============================== PICKLE =======================================
 
 (deftest transfer-multiple-arrays (pickle)
-  (let ((dimensions `((,(py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
-                      (,(* 5 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))))))
-    (assert-equalp dimensions
-        (mapcar #'array-dimensions 
-                (py4cl:pyeval
-                 (list (make-array (first dimensions) :element-type 'single-float)
-                       (make-array (second dimensions) :element-type 'single-float)))))))
+  (when (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+             (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (let ((dimensions `((,(py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+                        (,(* 5 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))))))
+      (assert-equalp dimensions
+                     (mapcar #'array-dimensions 
+                             (py4cl:pyeval
+                              (list (make-array (first dimensions) :element-type 'single-float)
+                                    (make-array (second dimensions) :element-type 'single-float))))
+                     "No bound or location for pickling."))))
+
+(deftest transfer-without-pickle (pickle)
+  (unless (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+             (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (assert-equalp '(100000)
+                   (array-dimensions
+                    (py4cl:pyeval (make-array 100000 :element-type 'single-float)))
+                   "Pickle bound and location is present.")))

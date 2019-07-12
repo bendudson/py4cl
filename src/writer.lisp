@@ -70,8 +70,10 @@ which is interpreted correctly by python (3.7.2)."
 ;; this is incremented by pythonize and reset to 0 at the beginning of
 ;; every pyeval*/pycall from delete-numpy-pickle-arrays in reader.lisp
 (defmethod pythonize ((obj array))
-  (when (> (array-total-size obj)
-	   (config-var 'numpy-pickle-lower-bound))
+  (when (and (config-var 'numpy-pickle-lower-bound)
+             (config-var 'numpy-pickle-location)
+             (> (array-total-size obj)
+                (config-var 'numpy-pickle-lower-bound)))
     (let ((filename (concatenate 'string
 				 (config-var 'numpy-pickle-location)
 				 "." (write-to-string (incf *numpy-pickle-index*)))))
