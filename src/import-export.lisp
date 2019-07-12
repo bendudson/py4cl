@@ -11,20 +11,45 @@
 
 (in-package :py4cl)
 
+(defun numeric-char-p (ch) (find ch "0123456789"))
+
+(defun split-point-p (pch ch)
+  (or (and (upper-case-p ch) (lower-case-p pch))
+      (and (numeric-char-p ch) (alpha-char-p pch))
+      (char= pch #\_)))
+
+(defun collect-first-word (char-list) ; can this be simplified?
+  "Returns ((h e l l o) W o r l d), given (h e l l o W o r l d)."
+  (iter (for ch-list initially char-list
+             then (cdr ch-list))
+        (while ch-list) 
+        (for ch = (first ch-list))
+        (for pch previous ch)
+        (for word initially () 
+             then (cons ch word))
+        (unless (first-iteration-p) (until (split-point-p pch ch)))
+        (finally (return (if ch-list
+                             (cons (nreverse word) ch-list) 
+                             (list char-list))))))
+
+(defun break-into-words (char-list)
+  "Returns ((h e l l o) (W) (o r l d)), given (h e l l o W o r l d)."
+  (when char-list
+    (destructuring-bind (word . rem-chars) (collect-first-word char-list)
+      (cons word (break-into-words rem-chars)))))
+
 (declaim (ftype (function (string) string) lispify-name))
 (defun lispify-name (name)
   "Converts NAME to a lisp-like name. Specifically:
   1. Replaces underscores with hyphens.
   2. CamelCase is converted to CAMEL-CASE"
-  (iter (for ch in-string name)
-        (collect (cond ((and (upper-case-p ch) (not (first-iteration-p))) #\-)
-                       ((char= ch #\_) #\-)
-                       (t ch))
-          into out-string 
-          result-type string)
-        (when (and (upper-case-p ch) (not (first-iteration-p))) 
-          (collect (char-downcase ch) into out-string result-type string))
-        (finally (return (string-upcase out-string)))))
+  (let ((words (mapcar (lambda (word)
+                         (coerce word 'string))
+                       (remove-if #'null
+                                  (break-into-words (coerce name 'list))))))
+    (remove-if (lambda (ch)
+                 (char= ch #\_))
+               (string-upcase (format nil "~{~A~^-~}" words)))))
 
 (defun get-unique-symbol (symbol-name package-name)
   (multiple-value-bind (symbol location)
