@@ -24,7 +24,7 @@ Documentation for almost all of these functions is available as docstrings as we
 - [`pycmd`](#pycmd): Choose which python binary to use. Works with miniconda.
 - About 6000 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
 this shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
-- Large arrays (100M in 2 sec!) can be transferred using numpy-file-format (see [initialize](#initialize); large strings cannot be; though, there is the remote-objects/* (undocumented here).
+- Large arrays (100M in 2 sec!) can be transferred using numpy-file-format (see [initialize](#initialize); large strings cannot be; though, there is the [remote-objects(*)](#remote-objects).
 - See [TODO].
 - Multiple python processes (not documented here) - parallel execution?
 - Stderr is not returned; though errors are returned
@@ -165,7 +165,26 @@ Concatenates the strings and sends them to the python process for `eval`uation. 
 ### `raw-pyexec`
 `(raw-pyexec &rest strings)`
 
-Concatenates the strings and sends them to the python process for `eval`uation. The concatenation should be a valid python statement. Returns nil.
+Concatenates the strings and sends them to the python process for `exec`uation. The concatenation should be a valid python statement. Returns nil.
+
+Note that [one limitation of `pyexec` is that modules imported on the top-level (of python) are not available inside some things](https://stackoverflow.com/questions/12505047/in-python-why-doesnt-an-import-in-an-exec-in-a-function-work). These "some things" include functions.
+
+The following should illustrate this point:
+```lisp
+CL-USER> (pyexec "import time")
+NIL
+CL-USER> (pyeval "time.time()")
+1.5623434e9
+CL-USER> (pyexec "
+def foo():
+  return time.time()")
+NIL
+CL-USER> (pyeval "foo()")
+; Evaluation aborted on #<PYERROR {100C24DF03}> ;; says 'time' is not defined
+CL-USER> (pyeval "time.time()")
+1.5623434e9
+```
+THe workaround in this case is to `import` inside the `def`.
 
 Often times, the two commands above would be tedious - since you'd need to convert objects into their string representations every time. To avoid this hassle, there are the following useful functions.
 
@@ -204,25 +223,6 @@ NIL
 ```
 The `join-strings-using` is doable using `(format nil...`.
 
-Note that [one limitation of `pyexec` is that modules imported on the top-level (of python) are not available inside some things](https://stackoverflow.com/questions/12505047/in-python-why-doesnt-an-import-in-an-exec-in-a-function-work). These "some things" include functions.
-
-The following should illustrate this point:
-```lisp
-CL-USER> (pyexec "import time")
-NIL
-CL-USER> (pyeval "time.time()")
-1.5623434e9
-CL-USER> (pyexec "
-def foo():
-  return time.time()")
-NIL
-CL-USER> (pyeval "foo()")
-; Evaluation aborted on #<PYERROR {100C24DF03}> ;; says 'time' is not defined
-CL-USER> (pyeval "time.time()")
-1.5623434e9
-```
-Check the link to see the work-around.
-
 See [Doing arbitrary things in python](#doing-arbitrary-things-in-python) to learn about `pyeval` and `pyexec`.
 
 ## Defining python functions and modules
@@ -251,13 +251,15 @@ CL-USER> (inp :shape '(1 2))
    :HANDLE 1849)
 ```
 
+`safety` takes care to import the required function from the required module after python process restarts for some reason. However, this affects speed.
+
 Refer `(describe 'defpyfun)`.
 
 ### `defpymodule`
 ```lisp
-(defpymodule pymodule-name &optional has-submodules &key as
+(defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
-  (reload nil))
+  (reload nil) (safety t) (is-submodule nil)
 ```
 
 `lisp-package` is the name of the symbol that the package would be bound to.
@@ -285,7 +287,7 @@ you'd need to use something like [pycall].
 
 ### `defpyfuns`
 
-
+(Undocumented here.)
 
 ## `pyerror`
 
@@ -306,12 +308,14 @@ CL-USER> (py4cl:pycall #'+ 2 3 1)
 6
 ```
 
-Note that `fun-name` can be a string, a function, or a [callable] python-object. See the example in [defpymodule](#defpymodule).
+Note that `fun-name` can be a name (see [Name Mapping]), a function, or a [callable] python-object. See the example in [defpymodule](#defpymodule).
 
-Another two variants of `pycall` are `pycall-async` (that is undocumented here) and [pycall-monitor](#pycall-monitor--pymethod-monitor).
+Another two variants of `pycall` are [pycall-async](#pycall-async) and [pycall-monitor](#pycall-monitor--pymethod-monitor).
 
 ### `pymethod`
 `(pymethod obj method-name &rest args)`
+
+`pymethod` always pythonizes; `method-name` is [name mapped to Python names][Name Mapping].
 
 ```lisp
 SEQ2SEQ> (pymethod model 'summary) ;; for some "ready" model
@@ -358,7 +362,7 @@ CL-USER> (pycall "foo")
 ;; hello ; prints after 5 seconds, after foo has returned
 5
 
-CL-USER> (pycall-monitor "foo" ())
+CL-USER> (pycall-monitor "foo" ()) ; note the empty argument list
 ;; hello ; prints immediately
 
 5 ; returns after 5 sec
@@ -375,10 +379,11 @@ CL-USER> (pyslot-value model 'input-shape)
 See [pyslot-list](#pyslot-list)
 
 ### `pycall-async`
+`(pycall-async fun-name &rest args)`
 
 One of the advantages of using streams to communicate with a separate
 python process, is that the python and lisp processes can run at the
-same time. =python-call-async= calls python but returns a closure
+same time. pycall-async calls python but returns a closure
 immediately. The python process continues running, and the result can
 be retrieved by calling the returned closure. 
 
@@ -394,8 +399,10 @@ function may not be able to finish until the thunk is called. This
 should not result in deadlocks, because all `py4cl` functions can
 service callbacks while waiting for a result.
 
-### `export-function`
+Also see [Name Mapping].
 
+### `export-function`
+`(export-funtion function python-name)`
 
 Lisp functions can be made available to python code using `export-function`:
 ```lisp
@@ -495,7 +502,7 @@ CL-USER> (pymethod-list (model))
 Optionally, see [pymethod](#pymethod).
 
 ## `chain`
-
+`(chain target &rest chain)`
 
 The interface to python objects is nicer using `chain` (see below):
 ```lisp
@@ -658,6 +665,7 @@ The advantage comes when dealing with large arrays or other datasets:
 Besides this, (see [Setting up](#setting-up).
 
 ## `python-getattr`
+`(python-getattr object slot-name)`
 
 Lisp structs and class objects can be passed to python, put into data structures and
 returned:
@@ -726,7 +734,7 @@ Inheritance then works as usual with CLOS methods:
 
 # Testing 
 
-Tests use [https://github.com/tgutu/clunit[[clunit], and run on [https://travis-ci.org/][Travis] using [https://github.com/luismbo/cl-travis][cl-travis]. Most development
+Tests use [clunit](https://github.com/tgutu/clunit), and run on [Travis](https://travis-ci.org/) using [cl-travis](https://github.com/luismbo/cl-travis). Most development
 is done under Arch linux with SBCL and Python3. To run the tests
 yourself:
 ```lisp
@@ -839,3 +847,4 @@ This template was taken from [The Common Lisp Cookbook][tCLC].
 [limitations]: #limitations-of-this-documentation
 [pycall]: #pycall
 [TODO]: https://github.com/digikar99/py4cl/blob/master/TODO.org
+[Name Mapping]: #name-mapping
