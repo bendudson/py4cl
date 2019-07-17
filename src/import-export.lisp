@@ -33,7 +33,7 @@
                              (list char-list))))))
 
 (defun break-into-words (char-list)
-  "Returns ((h e l l o) (W) (o r l d)), given (h e l l o W o r l d)."
+  "Returns ((h e l l o) (W o r l d)), given (h e l l o W o r l d)."
   (when char-list
     (destructuring-bind (word . rem-chars) (collect-first-word char-list)
       (cons word (break-into-words rem-chars)))))
@@ -72,32 +72,42 @@
          (sig-dict (if signature
                        (pyeval "dict(" signature ".parameters)")
                        (make-hash-table)))
-         (default-return (list '(&rest args)
-                               `(apply #'pycall ,fullname args))))
+         (default-return (list '(&rest args) ; see the case for allow-other-keys
+                               `(() (apply #'pycall ,fullname args))))
+         (allow-other-keys nil))
     (iter (for (key val) in-hashtable sig-dict)
           (for name = (pyeval val ".name"))
           (for default = (pyeval val ".default"))
           (when (or (some #'upper-case-p name)
-                    (typep default 'python-object)
-                    (find #\* (pyeval "str(" val ")")))
+                    (typep default 'python-object))
             (return-from get-arg-list default-return))
-          (collect (list (intern (lispify-name name) lisp-package)
-                         (if (or (symbolp default) (listp default))
-                             `',default
-                             default))
-            into parameter-list)
-          (collect (if pos-only
+          (if (search "**" (pyeval "str(" val ")"))
+              (progn
+                (setq allow-other-keys t)
+                (collect 'cl:&allow-other-keys into parameter-list))
+              (progn
+                (collect (list (intern (lispify-name name) lisp-package)
+                               (if (or (symbolp default) (listp default))
+                                   `',default
+                                   default))
+                  into parameter-list)
+                (collect (if pos-only
                        (intern (lispify-name name) lisp-package)
                        (list (intern (lispify-name name) :keyword)
                              (intern (lispify-name name) lisp-package)))
-            into pass-list)
+                  into pass-list)))
+          
           (finally 
            (return-from get-arg-list
              (cond ((null pass-list)  default-return)
                    (pos-only (list `(&optional ,@parameter-list)
-                                   `(pycall ,fullname ,@pass-list)))
+                                   `(() (pycall ,fullname ,@pass-list))))
+                   (allow-other-keys
+                    (list `(&rest args &key ,@parameter-list)
+                          `((declare (ignore ,@(mapcar #'second pass-list)))
+                            (apply #'pycall ,fullname args))))
                    (t (list `(&key ,@parameter-list)
-                            `(pycall ,fullname ,@(apply #'append pass-list))))))))))
+                            `(() (pycall ,fullname ,@(apply #'append pass-list)))))))))))
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
@@ -190,13 +200,14 @@ Arguments:
       `(progn
          (defun ,fun-symbol (,@parameter-list)
            ,(or fun-doc "Python function")
+           ,(first pass-list)
            ,(when safety
               (if (builtin-p pymodule-name)
                   `(python-start-if-not-alive)
                   (if called-from-defpymodule
                       `(pyexec "import " ,pymodule-name)
                       `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
-           ,pass-list)
+           ,(second pass-list))
          ,(when called-from-defpymodule `(export ',fun-symbol (find-package ,lisp-package)))))))
 
 
