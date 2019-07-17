@@ -282,7 +282,8 @@ Arguments:
                                           ,fun-name ,pymodule-name
                                         :lisp-package ,exporting-package
                                         :called-from-defpymodule t
-                                        :safety ,safety))))
+                                        :safety ,safety
+                                        :rename-lisp-fun-name t))))
        t)))
 
 (defmacro defpyfuns (&rest args)
