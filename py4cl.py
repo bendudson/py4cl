@@ -154,6 +154,7 @@ lispifiers = {
     # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
     dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
+    type(u'unicode') : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",  # Unicode in python 2
     Symbol     : str,
     UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
