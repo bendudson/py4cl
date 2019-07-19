@@ -14,7 +14,7 @@ but has the same goal.
 
 This fork is available on github at [digikar99/py4cl](https://github.com/digikar99/py4cl) - much of the credits go to [bendudson/py4cl](https://github.com/bendudson/py4cl), who started this project and made it useable.
 
-Please report the issues on [github](https://github.com/bendudson/cl-digikar-utilities/issues).
+Please report the issues on github: [this fork](https://github.com/digikar99/py4cl/issues) or [the original](https://github.com/bendudson/py4cl/issues).
 
 Documentation for almost all of these functions is available as docstrings as well.
 
@@ -61,7 +61,7 @@ location where it can be found by ASDF:
 git clone https://github.com/digikar99/py4cl.git
 ```
 
-Original version by [bendudson](https://github.com/bendudson/cl-digikar-utilities/issues) can be found at: 
+Original version by [bendudson](https://github.com/bendudson/py4cl) can be found at: 
 ```sh
 git clone https://github.com/bendudson/py4cl.git
 ```
