@@ -92,7 +92,12 @@
 ;; Check passing strings, including quote characters which need to be escaped
 (deftest eval-string (callpython-raw)
   (assert-equalp "say \"hello\" world"
-      (py4cl:raw-pyeval "'say \"hello\"' + ' world'")))
+                 (py4cl:raw-pyeval "'say \"hello\"' + ' world'")))
+
+(deftest eval-string-newline (callpython-raw)
+  (let ((str "hello
+world"))
+    (assert-equalp str (py4cl:raw-pyeval (py4cl::pythonize str)))))
 
 (deftest eval-format-string (callpython-raw)
   (assert-equalp "foo"
