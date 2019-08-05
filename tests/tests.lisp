@@ -4,6 +4,9 @@
   (:export :run))
 (in-package :py4cl-tests)
 
+#.(when (find-package :named-readtables)
+    `(named-readtables:in-readtable :common-lisp))
+
 (defsuite py4cl ())
 (defsuite process-interrupt (py4cl))
 (defsuite callpython-raw (py4cl))
