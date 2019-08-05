@@ -5,7 +5,7 @@
 (in-package :py4cl-tests)
 
 #.(when (find-package :named-readtables)
-    `(named-readtables:in-readtable :common-lisp))
+    `(,(find-symbol 'in-readtable :named-readtables) :common-lisp))
 
 (defsuite py4cl ())
 (defsuite process-interrupt (py4cl))
