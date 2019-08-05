@@ -63,8 +63,8 @@ If still not alive, raises a condition."
     (uiop:run-program
      (concatenate 'string "/bin/kill -SIGINT -"
 		  (write-to-string (uiop:process-info-pid process-info)))
-     :force-shell t
-     )))
+     :force-shell t)
+    (pyexec))) ; a hack, because listen or read-char or read-line didn't return
 
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."
