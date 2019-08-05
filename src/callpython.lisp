@@ -22,50 +22,53 @@
 
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
-  (let ((read-stream (uiop:process-info-output process))
-        (write-stream (uiop:process-info-input process)))
-    (loop
-       (case (read-char read-stream) ; First character is type of message
-         ;; Returned value
-         (#\r (return-from dispatch-messages
-                (stream-read-value read-stream)))
-         ;; Error
-         (#\e (error 'pyerror  
-                     :text (stream-read-string read-stream)))
+  (setq *python-process-busy-p* t)
+  (let* ((read-stream (uiop:process-info-output process))
+         (write-stream (uiop:process-info-input process))
+         (return-value
+          (loop
+             (case (read-char read-stream) ; First character is type of message
+               ;; Returned value
+               (#\r (return (stream-read-value read-stream)))
+               ;; Error
+               (#\e (error 'pyerror  
+                           :text (stream-read-string read-stream)))
 
-         ;; Delete object. This is called when an UnknownLispObject is deleted
-         (#\d (free-handle (stream-read-value read-stream)))
+               ;; Delete object. This is called when an UnknownLispObject is deleted
+               (#\d (free-handle (stream-read-value read-stream)))
 
-         ;; Slot access
-         (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
-                (let ((object (lisp-object handle)))
-                  ;; User must register a function to handle slot access
-                  (dispatch-reply write-stream
-                                  (restart-case
-                                      (python-getattr object slot-name)
-                                    ;; Provide some restarts for missing handler or missing slot
-                                    (return-nil () nil)
-                                    (return-zero () 0)
-                                    (enter-value (return-value)
-                                      :report "Provide a value to return"
-                                      :interactive (lambda ()
-                                                     (format t "Enter a value to return: ")
-                                                     (list (read)))
-                                      return-value))))))
-         
-         ;; Callback. Value returned is a list, containing the function ID then the args
-         (#\c
-          (let ((call-value (stream-read-value read-stream)))
-            (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
-              ;; Send a reply
-              (dispatch-reply write-stream return-value))))
+               ;; Slot access
+               (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
+                      (let ((object (lisp-object handle)))
+                        ;; User must register a function to handle slot access
+                        (dispatch-reply write-stream
+                                        (restart-case
+                                            (python-getattr object slot-name)
+                                          ;; Provide some restarts for missing handler or missing slot
+                                          (return-nil () nil)
+                                          (return-zero () 0)
+                                          (enter-value (return-value)
+                                            :report "Provide a value to return"
+                                            :interactive (lambda ()
+                                                           (format t "Enter a value to return: ")
+                                                           (list (read)))
+                                            return-value))))))
+               
+               ;; Callback. Value returned is a list, containing the function ID then the args
+               (#\c
+                (let ((call-value (stream-read-value read-stream)))
+                  (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
+                    ;; Send a reply
+                    (dispatch-reply write-stream return-value))))
 
-         ;; Print stdout
-         (#\p
-          (let ((print-string (stream-read-value read-stream)))
-            (princ print-string)))
-         
-         (otherwise (error "Unhandled message type"))))))
+               ;; Print stdout
+               (#\p
+                (let ((print-string (stream-read-value read-stream)))
+                  (princ print-string)))
+               
+               (otherwise (error "Unhandled message type"))))))
+    (setq *python-process-busy-p* nil)
+    return-value))
 
 
 ;; ============================== RAW FUNCTIONS ================================
@@ -238,7 +241,7 @@ functions like keras.Model.fit."
   "Same as PYCALL-MONITOR, but handy for calling methods."
   (apply #'pycall-monitor
 	 (concatenate 'string (pythonize obj)
-                       "." (pythonize-name method-name))
+                      "." (pythonize-name method-name))
          (cons arg-list
                `(:interval ,interval :output ,output))))
 

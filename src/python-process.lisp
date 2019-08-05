@@ -10,6 +10,13 @@
 is used to prevent garbage collection from deleting objects in the wrong
 python session")
 
+(defvar *python-process-busy-p* nil
+  "Used by pyinterrupt to determine if python process is waiting for input, or
+is busy processing.
+
+A possible workaround is to use strace.
+See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-running-or-waiting-for-user-input")
+
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
 This sets the global variable *python* to the process phandle,
@@ -59,11 +66,13 @@ If still not alive, raises a condition."
   (clear-lisp-objects))
 
 (defun pyinterrupt (&optional (process-info *python*))
-  (when (python-alive-p process-info)
+  (when (and (python-alive-p process-info)
+             *python-process-busy-p*)
     (uiop:run-program
      (concatenate 'string "/bin/kill -SIGINT -"
 		  (write-to-string (uiop:process-info-pid process-info)))
      :force-shell t)
+    (setq *python-process-busy-p* nil)
     (pyexec))) ; a hack, because listen or read-char or read-line didn't return
 
 (defun pyversion-info ()
