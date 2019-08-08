@@ -5,7 +5,7 @@
 (in-package :py4cl-tests)
 
 #.(when (find-package :named-readtables)
-    `(,(find-symbol 'in-readtable :named-readtables) :common-lisp))
+    `(,(find-symbol "IN-READTABLE" :named-readtables) :common-lisp))
 
 (defsuite py4cl ())
 (defsuite process-interrupt (py4cl))
@@ -17,6 +17,7 @@
 (defsuite pickle (py4cl))
 (defsuite process-basic (py4cl))
 (defsuite objects (py4cl))
+(defsuite numpy-ufunc (py4cl))
 
 ;; (defsuite process-basic (process-interrupt
 ;;                          callpython-raw
@@ -748,4 +749,20 @@ a = Test()")
     (assert-equalp '(100000)
                    (array-dimensions
                     (py4cl:pyeval (make-array 100000 :element-type 'single-float)))
-                   "Pickle bound and location is present.")))
+      "Pickle bound and location is present.")))
+
+;; ========================= NUMPY-UFUNC =======================================
+
+(py4cl:pyexec "
+try:
+  import numpy
+  found = True
+except ImportError:
+  found = False")
+(when (py4cl:pyeval "found")
+  (py4cl:defpyfun "abs" "numpy" :lisp-fun-name "NUMABS")
+  (deftest numpy-ufunc-abs (numpy-ufunc)
+    (assert-equalp #(1 2 3) (numabs #(-1 2 -3))))
+  (py4cl:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
+  (deftest numpy-ufunc-abs (numpy-ufunc)
+    (assert-equalp #(4 5 6) (numadd #(1 2 3) 3))))

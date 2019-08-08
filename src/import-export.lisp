@@ -65,49 +65,59 @@
 ;; https://stackoverflow.com/questions/2677185/how-can-i-read-a-functions-signature-including-default-argument-values
 (defun get-arg-list (fullname lisp-package)
   "Returns a list of two lists: PARAMETER-LIST and PASS_LIST"
-  (let* ((signature (ignore-errors (pyeval "inspect.signature(" fullname ")")))
-         ;; errors could be value error or type error
-         (pos-only (find #\/ (pycall 'str signature)))
-         ;; we are ignoring futther keyword args
-         (sig-dict (if signature
-                       (pyeval "dict(" signature ".parameters)")
-                       (make-hash-table)))
-         (default-return (list '(&rest args) ; see the case for allow-other-keys
-                               `(() (apply #'pycall ,fullname args))))
-         (allow-other-keys nil))
-    (iter (for (key val) in-hashtable sig-dict)
-          (for name = (pyeval val ".name"))
-          (for default = (pyeval val ".default"))
-          (when (or (some #'upper-case-p name)
-                    (typep default 'python-object))
-            (return-from get-arg-list default-return))
-          (if (search "**" (pyeval "str(" val ")"))
-              (progn
-                (setq allow-other-keys t)
-                (collect 'cl:&allow-other-keys into parameter-list))
-              (progn
-                (collect (list (intern (lispify-name name) lisp-package)
-                               (if (or (symbolp default) (listp default))
-                                   `',default
-                                   default))
-                  into parameter-list)
-                (collect (if pos-only
-                       (intern (lispify-name name) lisp-package)
-                       (list (intern (lispify-name name) :keyword)
-                             (intern (lispify-name name) lisp-package)))
-                  into pass-list)))
-          
-          (finally 
-           (return-from get-arg-list
-             (cond ((null pass-list)  default-return)
-                   (pos-only (list `(&optional ,@parameter-list)
-                                   `(() (pycall ,fullname ,@pass-list))))
-                   (allow-other-keys
-                    (list `(&rest args &key ,@parameter-list)
-                          `((declare (ignore ,@(mapcar #'second pass-list)))
-                            (apply #'pycall ,fullname args))))
-                   (t (list `(&key ,@parameter-list)
-                            `(() (pycall ,fullname ,@(apply #'append pass-list)))))))))))
+  (if (string= "<class 'numpy.ufunc'>" (pyeval "str(type(" fullname "))"))
+      (let* ((n (pyeval fullname ".nin"))
+             (arg-list-without-keys
+              (iter (for ch in-string "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                    (for i below n)
+                    (collect (intern (format nil "~A" ch) lisp-package)))))
+        `(,(append arg-list-without-keys
+                   '(&rest keys &key out (where t) &allow-other-keys))
+           ((declare (ignore out where))
+            (apply #'pycall ,fullname ,@arg-list-without-keys keys))))
+      (let* ((signature (ignore-errors (pyeval "inspect.signature(" fullname ")")))
+             ;; errors could be value error or type error
+             (pos-only (find #\/ (pycall 'str signature)))
+             ;; we are ignoring futther keyword args
+             (sig-dict (if signature
+                           (pyeval "dict(" signature ".parameters)")
+                           (make-hash-table)))
+             (default-return (list '(&rest args) ; see the case for allow-other-keys
+                                   `(() (apply #'pycall ,fullname args))))
+             (allow-other-keys nil))
+        (iter (for (key val) in-hashtable sig-dict)
+              (for name = (pyeval val ".name"))
+              (for default = (pyeval val ".default"))
+              (when (or (some #'upper-case-p name)
+                        (typep default 'python-object))
+                (return-from get-arg-list default-return))
+              (if (search "**" (pyeval "str(" val ")"))
+                  (progn
+                    (setq allow-other-keys t)
+                    (collect 'cl:&allow-other-keys into parameter-list))
+                  (progn
+                    (collect (list (intern (lispify-name name) lisp-package)
+                                   (if (or (symbolp default) (listp default))
+                                       `',default
+                                       default))
+                      into parameter-list)
+                    (collect (if pos-only
+                                 (intern (lispify-name name) lisp-package)
+                                 (list (intern (lispify-name name) :keyword)
+                                       (intern (lispify-name name) lisp-package)))
+                      into pass-list)))
+              
+              (finally 
+               (return-from get-arg-list
+                 (cond ((null pass-list)  default-return)
+                       (pos-only (list `(&optional ,@parameter-list)
+                                       `(() (pycall ,fullname ,@pass-list))))
+                       (allow-other-keys
+                        (list `(&rest args &key ,@parameter-list)
+                              `((declare (ignore ,@(mapcar #'second pass-list)))
+                                (apply #'pycall ,fullname args))))
+                       (t (list `(&key ,@parameter-list)
+                                `(() (pycall ,fullname ,@(apply #'append pass-list))))))))))))
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
