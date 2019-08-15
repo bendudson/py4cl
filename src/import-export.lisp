@@ -1,4 +1,4 @@
-;;; Functions and macros for importing and exporting symbols to python
+;; Functions and macros for importing and exporting symbols to python
 
 ;;;; Things we need to achieve - in case someone wants to attempt refactorisation
 ;;; For defpyfun:
@@ -284,7 +284,7 @@ Arguments:
         ;; Note that the package doesn't use CL to avoid shadowing
         (exporting-package
 	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
-    `(progn
+    `(eval-when (:compile-toplevel)
        ,(macroexpand `(defpackage ,lisp-package (:use)))
        ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
        ,@(iter (for fun-name in-vector fun-names)
