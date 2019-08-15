@@ -593,3 +593,14 @@ class testclass:
   (assert-equalp 6
       (py4cl:remote-objects*
         (py4cl:python-call (lambda (x y) (* x y)) 2 3))))
+
+
+(deftest unicode-string-type (pytests)
+  ;; Python 2 and python 3 handle unicode differently
+  ;; This just catches the use of unicode type strings in python2
+  ;; not the use of unicode characters
+  (assert-equal "test unicode"
+                (py4cl:python-eval "u'test unicode'"))
+  (assert-equal 3
+                (gethash "pizza"
+                         (py4cl:python-eval "{u'pizza': 3}"))))
