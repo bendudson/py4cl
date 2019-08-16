@@ -284,7 +284,7 @@ Arguments:
         ;; Note that the package doesn't use CL to avoid shadowing
         (exporting-package
 	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
-    `(eval-when (:compile-toplevel)
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
        ,(macroexpand `(defpackage ,lisp-package (:use)))
        ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
        ,@(iter (for fun-name in-vector fun-names)
