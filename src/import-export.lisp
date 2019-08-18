@@ -142,6 +142,21 @@ def _py4cl_non_callable(ele):
   (or (null pymodule-name)
       (string= "" pymodule-name)))
 
+(defun fun-symbol (pyfun-name pyfullname lisp-package &optional (ensure-unique t))
+  (if ensure-unique
+      (let ((callable-type (cond ((pyeval "inspect.isfunction(" pyfullname ")") 'function)
+                                 ((pyeval "inspect.isclass(" pyfullname ")") 'class)
+                                 (t t)))
+            (lisp-fun-name (lispify-name pyfun-name)))
+        (ecase callable-type
+          (class (intern (concatenate 'string
+                                      lisp-fun-name "/CLASS")
+                         lisp-package))
+          (function (intern lisp-fun-name lisp-package))
+          (t (intern (get-unique-symbol lisp-fun-name lisp-package)
+                     lisp-package))))  ;; later, specialize further if needed
+      (intern (lispify-name pyfun-name) lisp-package)))
+
 ;; In essence, this macro should give the full power of the
 ;;   "from modulename import function as func"
 ;; to the user.
@@ -159,7 +174,6 @@ def _py4cl_non_callable(ele):
                       (lisp-fun-name (lispify-name as))
                       (lisp-package *package*)
                       (called-from-defpymodule nil)
-                      (rename-lisp-fun-name nil)
                       (safety t))
   "Defines a function which calls python
 Example
@@ -191,24 +205,9 @@ Arguments:
                        (concatenate 'string pymodule-name "." fun-name)
                        (or as fun-name)))
          (fun-doc (pyeval fullname ".__doc__"))
-         (callable-type
-          (cond ((pyeval "inspect.isfunction(" fullname ")") 'function)
-                ((pyeval "inspect.isclass(" fullname ")") 'class)
-                (t t)))
-         (fun-symbol (if (not rename-lisp-fun-name)
-                         (intern lisp-fun-name lisp-package)
-                         (ecase callable-type
-                           (class (intern (if called-from-defpymodule
-                                              (concatenate 'string
-                                                           lisp-fun-name "/CLASS")
-                                              lisp-fun-name)
-                                          lisp-package))
-                           (function (intern lisp-fun-name lisp-package))
-                           (t (intern (get-unique-symbol lisp-fun-name lisp-package)
-                                      lisp-package)))))) ;; later, specialize further
+         (fun-symbol (intern lisp-fun-name lisp-package)))
     (destructuring-bind (parameter-list pass-list) (get-arg-list fullname (find-package lisp-package))
-      `(progn
-         (defun ,fun-symbol (,@parameter-list)
+      `(defun ,fun-symbol (,@parameter-list)
            ,(or fun-doc "Python function")
            ,(first pass-list)
            ,(when safety
@@ -217,8 +216,7 @@ Arguments:
                   (if called-from-defpymodule
                       `(pyexec "import " ,pymodule-name)
                       `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
-           ,(second pass-list))
-         ,(when called-from-defpymodule `(export ',fun-symbol (find-package ,lisp-package)))))))
+           ,(second pass-list)))))
 
 
 (defmacro defpysubmodules (pymodule-name lisp-package)
@@ -276,24 +274,36 @@ Arguments:
   (pyexec "import pkgutil")
   
   ;; fn-names  All callables whose names don't start with "_" 
-  (let ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
-                           pymodule-name
-                           ", callable) if name[0] != '_']"))
-        ;; Get the package name by passing through reader, rather than using STRING-UPCASE
-        ;; so that the result reflects changes to the readtable
-        ;; Note that the package doesn't use CL to avoid shadowing
-        (exporting-package
-	 (or (find-package lisp-package) (make-package lisp-package :use '()))))
-    `(eval-when (:compile-toplevel :load-toplevel :execute)
-       ,(macroexpand `(defpackage ,lisp-package (:use)))
+  (let* ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
+                            pymodule-name
+                            ", callable) if name[0] != '_']"))
+         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
+         ;; so that the result reflects changes to the readtable
+         ;; Note that the package doesn't use CL to avoid shadowing
+         (exporting-package
+          (or (find-package lisp-package) (make-package lisp-package :use '())))
+         (fun-symbols (map 'list
+                           (lambda (pyfun-name)
+                                (fun-symbol pyfun-name
+                                            (concatenate 'string
+                                                         pymodule-name
+                                                         "."
+                                                         pyfun-name)
+                                            lisp-package))
+                              fun-names)))
+    `(progn
+       ,(macroexpand `(defpackage ,lisp-package
+                        (:use)
+                        (:export ,@fun-symbols)))
        ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
        ,@(iter (for fun-name in-vector fun-names)
+               (for fun-symbol in fun-symbols)
                (collect (macroexpand `(defpyfun
                                           ,fun-name ,pymodule-name
                                         :lisp-package ,exporting-package
+                                        :lisp-fun-name ,(format nil "~A" fun-symbol)
                                         :called-from-defpymodule t
-                                        :safety ,safety
-                                        :rename-lisp-fun-name t))))
+                                        :safety ,safety))))
        t)))
 
 (defmacro defpyfuns (&rest args)
@@ -303,16 +313,16 @@ In addition, when ARG is a 2-element list, then, the first element can be
 a list of python function names. "
   `(progn
      ,@(iter outer
-         (for arg-list in args)
-         (ecase (length arg-list)
-           (2 (etypecase (first arg-list)
-                (list (iter
-                        (for pyfun-name in (first arg-list))
-                        (in outer (collect `(defpyfun ,pyfun-name
-                                                ,(second arg-list))))))
-                (string (collect `(defpyfun ,@arg-list)))))
-           (3 (collect `(defpyfun ,(first arg-list) ,(second arg-list)
-                          :lisp-fun-name ,(third arg-list))))))))
+             (for arg-list in args)
+             (ecase (length arg-list)
+               (2 (etypecase (first arg-list)
+                    (list (iter
+                            (for pyfun-name in (first arg-list))
+                            (in outer (collect `(defpyfun ,pyfun-name
+                                                    ,(second arg-list))))))
+                    (string (collect `(defpyfun ,@arg-list)))))
+               (3 (collect `(defpyfun ,(first arg-list) ,(second arg-list)
+                              :lisp-fun-name ,(third arg-list))))))))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
