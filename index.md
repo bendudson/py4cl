@@ -136,6 +136,23 @@ CL-USER> (pyversion-info)
 
 A simple `C-c C-c` only interrupts the lisp process from slime - the python process keeps running. `(pyinterrupt)` can be used in these cases to send a SIGINT (2) to the python process.
 
+It is possible to have `(pyinterrupt)` called on the reception of SIGINT in SLIME:
+
+```lisp
+(when (find-package :swank)
+  (defvar swank-simple-break)
+  (setf (fdefinition 'swank-simple-break)
+        (fdefinition (find-symbol "SIMPLE-BREAK" :swank)))
+  (defun swank:simple-break
+      (&optional (datum "Interrupt from Emacs") &rest args) 
+    (py4cl:pyinterrupt)
+    (apply (fdefinition 'swank-simple-break) datum args)))
+```
+
+Also note that if `pyinterrupt` is not called before sending the next form to `eval` or `exec`, the input-output would go out of sync. A known way to get out is to `(pystop)` the python-process.
+
+However, I have been unable to get the code to work (by adding to `do-after-load` with as well as without SLIME. Further, people may not like a library to fiddle with their environments - so it might be better to leave it up to the user to set it.
+
 ### py-cd
 `(py-cd path)`
 
