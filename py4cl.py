@@ -370,6 +370,8 @@ def message_dispatch_loop():
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
 
+        except KeyboardInterrupt as e:
+            return_value(None)
         except Exception as e:
             return_error(e)
 

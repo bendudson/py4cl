@@ -77,6 +77,15 @@ If still not alive, raises a condition."
   ;; Clear lisp objects
   (clear-lisp-objects))
 
+(defun python-interrupt (&optional (process-info *python*))
+  (when (python-alive-p process-info)
+    (uiop:run-program
+     (concatenate 'string "/bin/kill -SIGINT -"
+		  (write-to-string (uiop:process-info-pid process-info)))
+     :force-shell t)
+    ;; something to do with running in separate threads! "deftest interrupt"
+    (unless *py4cl-tests* (dispatch-messages process-info))))
+
 (defun python-version-info ()
   "Return a list, using the result of python's sys.version_info."
   (python-start-if-not-alive)

@@ -8,7 +8,8 @@
    #:python-stop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:python-version-info)
+   #:python-version-info
+   #:python-interrupt)
   (:export ; callpython
    #:python-error
    #:python-eval

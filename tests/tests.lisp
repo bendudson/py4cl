@@ -615,3 +615,44 @@ class testclass:
   (assert-equal 3
                 (gethash "pizza"
                          (py4cl:python-eval "{u'pizza': 3}"))))
+
+;; ==================== PROCESS-INTERRUPT ======================================
+
+;; Unable to test on CCL:
+;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
+
+#-ccl (deftest interrupt (pytests)
+  (let ((py4cl::*py4cl-tests* t))
+    (py4cl:python-stop)
+    (py4cl:python-exec "
+class Foo():
+  def foo(self):
+    import time
+    import sys
+    sys.stdout.write('hello')
+    sys.stdout.flush()
+    time.sleep(5)
+    return")
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (py4cl:python-call "Foo().foo")
+                              (setq rv (read-py4cl-output))))))
+          (sleep 1)
+          (py4cl:python-interrupt)
+          (bt:join-thread mon-thread)
+          rv))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (py4cl:python-method (py4cl:python-call "Foo") 'foo)
+                              (setq rv (read-py4cl-output))))))
+          (sleep 1)
+          (py4cl:python-interrupt)
+          (bt:join-thread mon-thread)
+          rv))
+
+    ;; Check if no "residue" left
+    (assert-equalp 5 (py4cl:python-eval 5))))
