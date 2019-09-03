@@ -19,6 +19,13 @@
   "Run all the tests for py4cl."
   (run-suite 'tests :use-debugger interactive?))
 
+(defun read-py4cl-output ()
+  (let ((py-out (uiop:process-info-error-output py4cl::*python*)))
+    (with-output-to-string (str)
+      (loop while (listen py-out)
+         for char = (read-char py-out nil)
+         do (write-char char str)))))
+
 ;; Start and stop Python, check that python-alive-p responds
 (deftest start-stop (tests)
   (assert-false (py4cl:python-alive-p))
@@ -69,21 +76,25 @@
 (deftest eval-print (pytests)
   (unless (= 2 (first (py4cl:python-version-info)))
     ;; Should return the result of print, not the string printed
-    (assert-equalp nil
-        (py4cl:python-eval "print(\"hello\")")
+    (let ((py4cl::*py4cl-tests* t))
+      (py4cl:python-stop)
+      (assert-equalp nil
+          (py4cl:python-eval "print(\"hello\")")
         "This fails with python 2")
 
-    ;; Should print the output to stdout
-    (assert-equalp "hello world
-"
-                   (with-output-to-string (*standard-output*)
-                     (py4cl:chain (print "hello world"))))
+      (py4cl:python-stop)
 
-    ;; Check that the output is cleared, by printing a shorter string
-    (assert-equalp "testing
+      ;; Should print the output to stdout
+      (assert-equalp "hello world
 "
-                   (with-output-to-string (*standard-output*)
-                     (py4cl:chain (print "testing"))))))
+          (progn (py4cl:chain (print "hello world"))
+                 (read-py4cl-output)))
+
+      ;; Check that the output is cleared, by printing a shorter string
+      (assert-equalp "testing
+"
+          (progn (py4cl:chain (print "testing"))
+                 (read-py4cl-output))))))
 
 (deftest eval-params (pytests)
   ;; Values are converted into python values

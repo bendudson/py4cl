@@ -2,7 +2,7 @@
 
 (in-package :py4cl)
 
-(defvar *python-command* "python"
+(defvar *python-command* "/home/shubhamkar/miniconda3/bin/python"
   "String, the Python executable to launch
 e.g. \"python\" or \"python3\"")
 
@@ -13,6 +13,9 @@ e.g. \"python\" or \"python3\"")
   "A number which changes when python is started. This
 is used to prevent garbage collection from deleting objects in the wrong
 python session")
+
+(defvar *py4cl-tests* nil
+  "Set to true, during testing, for obtaining output to a string.")
 
 (defun python-start (&optional (command *python-command*))
   "Start a new python subprocess
@@ -25,11 +28,18 @@ By default this is is set to *PYTHON-COMMAND*
         (uiop:launch-program
          (concatenate 'string
                       command  ; Run python executable
-                      " "
+                      " -u "
                       ;; Path *base-pathname* is defined in py4cl.asd
                       ;; Calculate full path to python script
                       (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream))
+         :input :stream :output :stream :error-output :stream))
+  (unless *py4cl-tests*
+    (bt:make-thread (lambda ()
+                      (when *python*
+                        (let ((py-out (uiop:process-info-error-output *python*)))
+                          (loop while (and *python* (python-alive-p *python*))
+                             for char = (read-char py-out nil)
+                             do (when char (write-char char))))))))
   (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process *python*))
@@ -59,8 +69,6 @@ If still not alive, raises a condition."
   ;; Could give it a few seconds to close nicely
   (let ((stream (uiop:process-info-input process)))
     (write-char #\q stream))
-  ;; Close input, output streams
-  (uiop:close-streams process)
   ;; Terminate
   (uiop:terminate-process process)
   ;; Mark as not alive

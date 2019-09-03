@@ -19,10 +19,10 @@ except:
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
 
-write_stream = sys.stdout
-redirect_stream = StringIO()
 
-sys.stdout = redirect_stream
+return_stream = sys.stdout
+output_stream = sys.stderr
+sys.stdout = sys.stderr
 
 class Symbol(object):
     """
@@ -52,12 +52,8 @@ class LispCallbackObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        try:
-            sys.stdout = write_stream
-            write_stream.write("d")
-            send_value(self.handle)
-        finally:
-            sys.stdout = redirect_stream
+        return_stream.write("d")
+        send_value(self.handle)
 
     def __call__(self, *args, **kwargs):
         """
@@ -75,14 +71,11 @@ class LispCallbackObject (object):
 
         old_return_values = return_values # Save to restore after
         try:
-            return_values = 0 # Need to send the values
-            sys.stdout = write_stream
-            write_stream.write("c")
+            return_values = 0
+            return_stream.write('c')
             send_value((self.handle, allargs))
-        finally:
+        finally: 
             return_values = old_return_values
-            sys.stdout = redirect_stream
-
         # Wait for a value to be returned.
         # Note that the lisp function may call python before returning
         return message_dispatch_loop()
@@ -104,25 +97,16 @@ class UnknownLispObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        try:
-            sys.stdout = write_stream
-            write_stream.write("d")
-            send_value(self.handle)
-        finally:
-            sys.stdout = redirect_stream
+        return_stream.write('d')
+        send_value(self.handle)
 
     def __str__(self):
         return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
 
     def __getattr__(self, attr):
         # Check if there is a slot with this name
-        try:
-            sys.stdout = write_stream
-            write_stream.write("s") # Slot access
-            send_value((self.handle, attr))
-        finally:
-            sys.stdout = redirect_stream
-
+        return_stream.write('s')
+        send_value((self.handle, attr))
         # Wait for the result
         return message_dispatch_loop()
         
@@ -246,56 +230,31 @@ def send_value(value):
     """
     Send a value to stdout as a string, with length of string first
     """
+    
     try:
         value_str = lispify(value)
     except Exception as e:
         # At this point the message type has been sent,
         # so we can't change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
-    print(len(value_str))
-    write_stream.write(value_str)
-    write_stream.flush()
+    print(len(value_str), file = return_stream, flush=True)
+    return_stream.write(value_str)
+    return_stream.flush()
+     
 
-def return_stdout():
-    """
-    Return the contents of redirect_stream, to be printed to stdout
-    """
-    global redirect_stream
-    global return_values
-    
-    contents = redirect_stream.getvalue()
-    if not contents:
-        return  # Nothing to send
-
-    redirect_stream = StringIO() # New stream, delete old one
-
-    old_return_values = return_values # Save to restore after
-    try:
-        return_values = 0 # Need to return the string, not a handle
-        sys.stdout = write_stream
-        write_stream.write("p")
-        send_value(contents)
-    finally:
-        return_values = old_return_values
-        sys.stdout = redirect_stream
-    
 def return_error(err):
     """
     Send an error message
     """
     global return_values
 
-    return_stdout() # Send stdout if any
-    
     old_return_values = return_values # Save to restore after
     try:
         return_values = 0 # Need to return the error, not a handle
-        sys.stdout = write_stream
-        write_stream.write("e")
+        return_stream.write('e')
         send_value(str(err))
     finally:
         return_values = old_return_values
-        sys.stdout = redirect_stream
 
 def return_value(value):
     """
@@ -303,16 +262,9 @@ def return_value(value):
     """
     if isinstance(value, Exception):
         return return_error(value)
-
-    return_stdout() # Send stdout if any
-    
     # Mark response as a returned value
-    try:
-        sys.stdout = write_stream
-        write_stream.write("r")
-        send_value(value)
-    finally:
-        sys.stdout = redirect_stream
+    return_stream.write('r')
+    send_value(value)
         
 def message_dispatch_loop():
     """
