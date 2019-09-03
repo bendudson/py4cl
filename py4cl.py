@@ -52,8 +52,11 @@ class LispCallbackObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        return_stream.write("d")
-        send_value(self.handle)
+        try:
+            return_stream.write("d")
+            send_value(self.handle)
+        finally:
+            pass
 
     def __call__(self, *args, **kwargs):
         """
@@ -97,8 +100,11 @@ class UnknownLispObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        return_stream.write('d')
-        send_value(self.handle)
+        try:
+            return_stream.write('d')
+            send_value(self.handle)
+        finally:
+            pass
 
     def __str__(self):
         return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
