@@ -1,4 +1,4 @@
-
+(py4cl:import-module "math" :reload t)
 (defpackage #:py4cl/tests
   (:use #:cl #:clunit)
   (:export #:run))

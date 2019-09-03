@@ -86,25 +86,33 @@ RELOAD specifies that the package should be deleted and reloaded.
   (python-exec "import inspect")
 
   ;; fn-names  All callables whose names don't start with "_"
-  (let ((fn-names (python-eval (concatenate 'string
-                                            "[name for name, fn in inspect.getmembers("
-                                            as
-                                            ", callable) if name[0] != '_']")))
-        ;; Get the package name by passing through reader, rather than using STRING-UPCASE
-        ;; so that the result reflects changes to the readtable
-        ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
-        ;; Note that the package doesn't use CL to avoid shadowing
-        (*package* (make-package (string (read-from-string as))
-                                 :use '())))
+  (let* ((fn-names (python-eval (concatenate 'string
+                                             "[name for name, fn in inspect.getmembers("
+                                             as
+                                             ", callable) if name[0] != '_']")))
+         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
+         ;; so that the result reflects changes to the readtable
+         ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
+         ;; Note that the package doesn't use CL to avoid shadowing
+         (*package* (make-package (string (read-from-string as))
+                                  :use '()))
+         (fun-symbols (map 'list
+                           (lambda (fun-name)
+                             (read-from-string fun-name))
+                           fn-names)))
     (import '(cl:nil)) ; So that missing docstring is handled
-    (append '(progn)
-            (loop for name across fn-names
-               for fn-symbol = (read-from-string name)
-               for fullname = (concatenate 'string as "." name) ; Include module prefix
-               append `((import-function ,fullname :as ,fn-symbol
-                            :docstring ,(python-eval (concatenate 'string
-                                                                  as "." name ".__doc__")))
-                        (export ',fn-symbol ,*package*))))))
+    `(progn
+       ,(macroexpand `(defpackage ,(package-name *package*)
+                        (:use)
+                        (:export ,@fun-symbols)))
+       ,@(loop for name across fn-names
+            for fn-symbol = (read-from-string name)
+            for fullname = (concatenate 'string as "." name) ; Include module prefix
+            append `((import-function ,fullname :as ,fn-symbol
+                                      :docstring ,(python-eval (concatenate 'string
+                                                                            as "." name ".__doc__")))
+                     (export ',fn-symbol ,*package*)))
+       t)))
 
 (defun export-function (function python-name)
   "Makes a lisp FUNCTION available in python process as PYTHON-NAME"
