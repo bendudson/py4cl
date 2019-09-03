@@ -2,7 +2,7 @@
 
 (in-package :py4cl)
 
-(defvar *python-command* "/home/shubhamkar/miniconda3/bin/python"
+(defvar *python-command* "python"
   "String, the Python executable to launch
 e.g. \"python\" or \"python3\"")
 
