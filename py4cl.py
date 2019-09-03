@@ -237,7 +237,7 @@ def send_value(value):
         # At this point the message type has been sent,
         # so we can't change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
-    print(len(value_str), file = return_stream, flush=True)
+    print(len(value_str), file = return_stream)
     return_stream.write(value_str)
     return_stream.flush()
      
