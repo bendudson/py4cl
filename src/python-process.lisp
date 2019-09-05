@@ -27,6 +27,7 @@ By default this is is set to *PYTHON-COMMAND*
   (setf *python*
         (uiop:launch-program
          (concatenate 'string
+                      #+os-unix "exec "
                       command  ; Run python executable
                       " -u "
                       ;; Path *base-pathname* is defined in py4cl.asd
