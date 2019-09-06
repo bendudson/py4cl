@@ -17,6 +17,7 @@
    #:python-call
    #:python-call-async
    #:python-method
+   #:python-generator
    #:chain
    #:python-setf
    #:remote-objects

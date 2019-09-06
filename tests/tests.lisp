@@ -307,6 +307,25 @@
     (assert-equalp 42
                    (gethash "test" table))))
 
+;; Generators
+(deftest generator (pytests)
+  (assert-equalp (ecase (car (py4cl:python-version-info))
+                   (3 "<class 'generator'>")
+                   (2 "<type 'generator'>"))
+      (slot-value (py4cl:python-generator #'identity 3) 'type))
+  (py4cl:python-exec "
+def foo(gen):
+  return list(gen)")
+  (assert-equalp #(1 2 3 4)
+      (let ((gen (py4cl:python-generator (let ((x 0)) (lambda () (incf x)))
+                                         5)))
+        (py4cl:python-call "foo" gen)))
+  (assert-equalp #(#\h #\e #\l #\l #\o) 
+      (let ((gen (py4cl:python-generator (let ((str (make-string-input-stream "hello")))
+                                           (lambda () (read-char str nil)))
+                                         nil)))
+        (py4cl:python-call "foo" gen))))
+
 ;; Asyncronous functions
 (deftest call-function-async (pytests)
   (let ((thunk (py4cl:python-call-async "str" 42)))

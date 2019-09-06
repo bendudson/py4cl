@@ -236,6 +236,12 @@ def lispify(obj):
         # Another unknown type. Return a handle to a python object
         return lispify_handle(obj)
 
+def generator(function, stop_value):
+    temp = None
+    while True:
+        temp = function()
+        if temp == stop_value: break
+        yield temp
 
 ##################################################################
 
@@ -414,6 +420,7 @@ eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
+eval_globals["_py4cl_generator"] = generator
 # These store the environment used when eval'ing strings from Lisp
 # - particularly for numpy pickling
 eval_globals["_py4cl_config"] = config
