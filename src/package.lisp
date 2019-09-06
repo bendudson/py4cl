@@ -26,4 +26,14 @@
    #:import-module
    #:export-function)
   (:export ; lisp-classes
-   #:python-getattr))
+   #:python-getattr)
+  (:export ; config 
+   #:*config*
+   #:initialize
+   #:save-config
+   #:load-config
+   #:config-var
+   #:pycmd
+   #:numpy-pickle-location
+   #:numpy-pickle-lower-bound
+   #:py-cd))

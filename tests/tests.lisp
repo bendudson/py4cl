@@ -616,6 +616,29 @@ class testclass:
                 (gethash "pizza"
                          (py4cl:python-eval "{u'pizza': 3}"))))
 
+;; ============================== PICKLE =======================================
+
+(deftest transfer-multiple-arrays (pytests)
+  (when (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+             (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (let ((dimensions `((,(py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+                        (,(* 5 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))))))
+      (assert-equalp dimensions
+                     (mapcar #'array-dimensions 
+                             (py4cl:python-eval
+                              (list (make-array (first dimensions) :element-type 'single-float)
+                                    (make-array (second dimensions) :element-type 'single-float))))
+                     "No bound or location for pickling."))))
+
+(deftest transfer-without-pickle (pytests)
+  (unless (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+               (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (assert-equalp '(100000)
+                   (array-dimensions
+                    (py4cl:python-eval (make-array 100000 :element-type 'single-float)))
+      "Pickle bound and location is present.")))
+
+
 ;; ==================== PROCESS-INTERRUPT ======================================
 
 ;; Unable to test on CCL:

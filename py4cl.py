@@ -10,6 +10,8 @@ from __future__ import print_function
 import sys
 import numbers
 import itertools
+import os
+import json
 
 try:
     from io import StringIO # Python 3
@@ -23,6 +25,18 @@ except:
 return_stream = sys.stdout
 output_stream = sys.stderr
 sys.stdout = sys.stderr
+
+config = {}
+def load_config():
+    if (os.path.exists(os.path.dirname(__file__) + "/.config")):
+        with open(os.path.dirname(__file__) + "/.config") as conf:
+            global config
+            config = json.load(conf)
+            try:
+                eval_globals['_py4cl_config'] = config
+            except:
+                pass
+load_config()
 
 class Symbol(object):
     """
@@ -55,7 +69,7 @@ class LispCallbackObject (object):
         try:
             return_stream.write("d")
             send_value(self.handle)
-        finally:
+        except:
             pass
 
     def __call__(self, *args, **kwargs):
@@ -103,7 +117,7 @@ class UnknownLispObject (object):
         try:
             return_stream.write('d')
             send_value(self.handle)
-        finally:
+        except:
             pass
 
     def __str__(self):
@@ -156,12 +170,24 @@ try:
     # Use NumPy for multi-dimensional arrays
     import numpy
 
+    def load_pickled_ndarray_and_delete(filename):
+        arr = numpy.load(filename, allow_pickle = True)
+        os.remove(filename)
+        return arr
+
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
         array([[1, 2],     => '#2A((1 2) (3 4))'
               [3, 4]])
         """
+        if "numpyPickleLowerBound" in config and \
+           "numpyPickleLocation" in config and \
+           obj.size > config["numpyPickleLowerBound"]:
+            numpy_pickle_location = config["numpyPickleLocation"]
+            numpy.save(numpy_pickle_location, obj, allow_pickle = True)
+            return ('#.(numpy-file-format:load-array "'
+                    + numpy_pickle_location + '")')
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -176,9 +202,6 @@ try:
 
     # Register the handler to convert Python -> Lisp strings
     lispifiers[numpy.ndarray] = lispify_ndarray
-
-    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
-    eval_globals["_py4cl_numpy"] = numpy
 
     # Register numeric base class
     numeric_base_classes += (numpy.number,)
@@ -391,6 +414,17 @@ eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
+# These store the environment used when eval'ing strings from Lisp
+# - particularly for numpy pickling
+eval_globals["_py4cl_config"] = config
+eval_globals["_py4cl_load_config"] = load_config
+try:
+    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
+    eval_globals["_py4cl_numpy"] = numpy
+    eval_globals["_py4cl_load_pickled_ndarray_and_delete"] \
+      = load_pickled_ndarray_and_delete
+except:
+    pass
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
