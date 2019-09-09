@@ -5,7 +5,7 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ("trivial-garbage" "uiop" "bordeaux-threads" "cl-json" "numpy-file-format")
+  :depends-on ("trivial-garbage" "uiop" "cl-json" "numpy-file-format")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
@@ -32,7 +32,8 @@
   :license "MIT"
   :depends-on ("py4cl"
                "clunit"
-               "trivial-garbage")
+               "trivial-garbage"
+               "bordeaux-threads")
   :pathname #P"tests/"
   :components ((:file "tests"))
   :perform (test-op (o c) (symbol-call :py4cl/tests :run)))
