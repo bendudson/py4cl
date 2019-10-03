@@ -1,4 +1,4 @@
-
+(py4cl:import-module "math" :reload t)
 (defpackage #:py4cl/tests
   (:use #:cl #:clunit)
   (:export #:run))
@@ -295,6 +295,25 @@
   (let ((table (py4cl:python-eval "{\"test\":42}")))
     (assert-equalp 42
                    (gethash "test" table))))
+
+;; Generators
+(deftest generator (pytests)
+  (assert-equalp (ecase (car (py4cl:python-version-info))
+                   (3 "<class 'generator'>")
+                   (2 "<type 'generator'>"))
+      (slot-value (py4cl:python-generator #'identity 3) 'type))
+  (py4cl:python-exec "
+def foo(gen):
+  return list(gen)")
+  (assert-equalp #(1 2 3 4)
+      (let ((gen (py4cl:python-generator (let ((x 0)) (lambda () (incf x)))
+                                         5)))
+        (py4cl:python-call "foo" gen)))
+  (assert-equalp #(#\h #\e #\l #\l #\o) 
+      (let ((gen (py4cl:python-generator (let ((str (make-string-input-stream "hello")))
+                                           (lambda () (read-char str nil)))
+                                         nil)))
+        (py4cl:python-call "foo" gen))))
 
 ;; Asyncronous functions
 (deftest call-function-async (pytests)
@@ -604,3 +623,72 @@ class testclass:
   (assert-equal 3
                 (gethash "pizza"
                          (py4cl:python-eval "{u'pizza': 3}"))))
+
+;; ============================== PICKLE =======================================
+
+(deftest transfer-multiple-arrays (pytests)
+  (when (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+             (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (let ((dimensions `((,(py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+                        (,(* 5 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))))))
+      (assert-equalp dimensions
+                     (mapcar #'array-dimensions 
+                             (py4cl:python-eval
+                              (list (make-array (first dimensions) :element-type 'single-float)
+                                    (make-array (second dimensions) :element-type 'single-float))))
+                     "No bound or location for pickling."))))
+
+(deftest transfer-without-pickle (pytests)
+  (unless (and (py4cl:config-var 'py4cl:numpy-pickle-location)
+               (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (assert-equalp '(100000)
+                   (array-dimensions
+                    (py4cl:python-eval (make-array 100000 :element-type 'single-float)))
+      "Pickle bound and location is present.")))
+
+
+;; ==================== PROCESS-INTERRUPT ======================================
+
+;; Unable to test on CCL:
+;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
+
+#-ccl (deftest interrupt (pytests)
+        (unless (= 2 (first (py4cl:python-version-info)))
+          (let ((py4cl::*py4cl-tests* t))
+            (py4cl:python-stop)
+            (py4cl:python-exec "
+class Foo():
+  def foo(self):
+    import time
+    import sys
+    sys.stdout.write('hello')
+    sys.stdout.flush()
+    time.sleep(5)
+    return")
+            (assert-equalp "hello"
+                (let* ((return-value nil)
+                       (mon-thread (bt:make-thread
+                                    (lambda ()
+                                      (setq return-value
+                                            (with-output-to-string (*standard-output*)
+                                              (py4cl:python-call "Foo().foo")))))))
+                  (sleep 1)
+                  (py4cl:python-interrupt)
+                  (bt:join-thread mon-thread)
+                  return-value))
+            (assert-equalp "hello"
+                (let* ((return-value nil)
+                       (mon-thread (bt:make-thread
+                                    (lambda ()
+                                      (setq return-value
+                                            (with-output-to-string (*standard-output*)
+                                              (py4cl:python-method (py4cl:python-call "Foo")
+                                                                   'foo)))))))
+                  (sleep 1)
+                  (py4cl:python-interrupt)
+                  (bt:join-thread mon-thread)
+                  return-value))
+
+            ;; Check if no "residue" left
+
+            (assert-equalp 5 (py4cl:python-eval 5)))))

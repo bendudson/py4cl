@@ -5,16 +5,18 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
-  :depends-on ("trivial-garbage")
+  :depends-on ("trivial-garbage" "uiop" "cl-json" "numpy-file-format")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
+               (:file "config")
                (:file "reader")
                (:file "writer")
                (:file "python-process")
                (:file "lisp-classes")
                (:file "callpython")
-               (:file "import-export"))
+               (:file "import-export")
+               (:file "do-after-load"))
   :in-order-to ((test-op (test-op "py4cl/tests"))))
 
 ;; This is to store the path to the source code
@@ -30,7 +32,8 @@
   :license "MIT"
   :depends-on ("py4cl"
                "clunit"
-               "trivial-garbage")
+               "trivial-garbage"
+               "bordeaux-threads")
   :pathname #P"tests/"
   :components ((:file "tests"))
   :perform (test-op (o c) (symbol-call :py4cl/tests :run)))

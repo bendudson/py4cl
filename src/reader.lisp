@@ -32,6 +32,16 @@ try:
 except:
   pass")))))
 
+(defun delete-numpy-pickle-arrays ()
+  "Delete pickled arrays, to free space."
+  (iter (while (> *numpy-pickle-index* 0))
+        (for filename =
+             (concatenate 'string
+                          (config-var 'numpy-pickle-location)
+                          "." (write-to-string *numpy-pickle-index*)))
+        (uiop:delete-file-if-exists filename)
+        (decf *numpy-pickle-index*)))
+
 (defun make-python-object-finalize (&key (type "") handle)
     "Make a PYTHON-OBJECT struct with a finalizer.
 This deletes the object from the dict store in python.

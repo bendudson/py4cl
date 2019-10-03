@@ -8,7 +8,8 @@
    #:python-stop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:python-version-info)
+   #:python-version-info
+   #:python-interrupt)
   (:export ; callpython
    #:python-error
    #:python-eval
@@ -16,6 +17,7 @@
    #:python-call
    #:python-call-async
    #:python-method
+   #:python-generator
    #:chain
    #:python-setf
    #:remote-objects
@@ -25,4 +27,14 @@
    #:import-module
    #:export-function)
   (:export ; lisp-classes
-   #:python-getattr))
+   #:python-getattr)
+  (:export ; config 
+   #:*config*
+   #:initialize
+   #:save-config
+   #:load-config
+   #:config-var
+   #:pycmd
+   #:numpy-pickle-location
+   #:numpy-pickle-lower-bound
+   #:py-cd))

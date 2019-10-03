@@ -24,7 +24,7 @@ By default this is is set to *PYTHON-COMMAND*
   (setf *python*
         (uiop:launch-program
          (concatenate 'string
-                      #+os-unix "exec "
+                      "exec "
                       command  ; Run python executable
                       " "
                       ;; Path *base-pathname* is defined in py4cl.asd
@@ -69,6 +69,17 @@ If still not alive, raises a condition."
 
   ;; Clear lisp objects
   (clear-lisp-objects))
+
+(defvar *py4cl-tests* nil "Set nil for something like py4cl/tests::interrupt test,
+for unknown reasons.")
+(defun python-interrupt (&optional (process-info *python*))
+  (when (python-alive-p process-info)
+    (uiop:run-program
+     (concatenate 'string "/bin/kill -SIGINT -"
+		  (write-to-string (uiop:process-info-pid process-info)))
+     :force-shell t)
+    ;; something to do with running in separate threads! "deftest interrupt"
+    (unless *py4cl-tests* (dispatch-messages process-info))))
 
 (defun python-version-info ()
   "Return a list, using the result of python's sys.version_info."

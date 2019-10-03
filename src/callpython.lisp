@@ -170,6 +170,9 @@ Examples:
        (py4cl::pythonize args)
        "()")))
 
+(defun python-generator (function stop-value)
+  (python-call "_py4cl_generator" function stop-value))
+
 (defun function-args (args)
   "Internal function, intended to be called by the CHAIN macro.
 Converts function arguments to a list of strings and (pythonize )
