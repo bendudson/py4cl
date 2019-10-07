@@ -113,23 +113,23 @@ Data is passed between python and lisp as text. The python function
 reader; the lisp function =pythonize= outputs strings which can be
 =eval='d in python. The following type conversions are done:
 
-| Lisp type | Python type   |
-|-----------+---------------|
-| NIL       | None          |
-| integer   | int           |
-| ratio     | float         |
-| real      | float         |
-| complex   | complex float |
-| string    | str           |
-| hash map  | dict          |
-| list      | tuple         |
-| vector    | list          |
-| array     | NumPy array   |
-| symbol    | Symbol class  |
-| function  | function      |
+| Lisp type | Python type        |
+|-----------+--------------------|
+| NIL       | None               |
+| integer   | int                |
+| ratio     | fractions.Fraction |
+| real      | float              |
+| complex   | complex float      |
+| string    | str                |
+| hash map  | dict               |
+| list      | tuple              |
+| vector    | list               |
+| array     | NumPy array        |
+| symbol    | Symbol class       |
+| function  | function           |
 
 Note that python does not have all the numerical types which lisp has,
-for example rational numbers or complex integers.
+for example complex integers.
 
 Because =python-eval= and =python-exec= evaluate strings as python
 expressions, strings passed to them are not escaped or converted as

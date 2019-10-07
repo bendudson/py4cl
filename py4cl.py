@@ -475,6 +475,19 @@ try:
 except:
     pass
 
+# Handle fractions (RATIO type)
+# Lisp will pass strings containing "_py4cl_fraction(n,d)"
+# where n and d are integers.
+try:
+    import fractions
+    eval_globals["_py4cl_fraction"] = fractions.Fraction
+    
+    # Turn a Fraction into a Lisp RATIO
+    lispifiers[fractions.Fraction] = str
+except:
+    # In python2, ensure that fractions are converted to floats
+    eval_globals["_py4cl_fraction"] = lambda a,b : float(a)/b
+
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
 
