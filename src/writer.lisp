@@ -155,6 +155,15 @@ The lisp function is stored in the same object store as other objects."
                (write-to-string (python-object-handle obj))
                "]"))
 
+(defmethod pythonize ((obj ratio))
+  "Handle ratios, using Python's Fraction if available"
+  (concatenate 'string
+               "_py4cl_fraction("
+               (pythonize (numerator obj))
+               ","
+               (pythonize (denominator obj))
+               ")"))
+
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
   ;; Convert the value to a string

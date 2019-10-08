@@ -692,3 +692,20 @@ class Foo():
             ;; Check if no "residue" left
 
             (assert-equalp 5 (py4cl:python-eval 5)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Rational numbers
+
+(deftest ratios (pytests)
+  ;; Ratios survive a round trip
+  (assert-equalp 1/2
+      (py4cl:python-eval 1/2))
+
+  ;; Ratios (Fractions in python) can be manipulated
+  (assert-equalp 1/4
+      (py4cl:python-eval 1/2 "/" 2))
+
+  ;; Complex ratios not supported in python so converts to floats
+  (assert-equality #'= #C(0.5 1.0)
+    (py4cl:python-eval #C(1 2) "*" 1/2)))
+    
