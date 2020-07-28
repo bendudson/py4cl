@@ -89,8 +89,8 @@ Examples:
  (let ((a 10) (b 2))
    (py4cl:python-eval a "*" b)) => 20
 "
-   (delete-freed-python-objects)
-   (apply #'python-eval* #\e args))
+  (delete-freed-python-objects)
+  (apply #'python-eval* #\e args))
 
 (defun (setf python-eval) (value &rest args)
   "Set an expression to a value. Just adds \"=\" and the value

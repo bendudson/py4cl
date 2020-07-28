@@ -30,17 +30,17 @@ HANDLE slot is a unique key used to refer to a value in python."
 try:
   del _py4cl_objects[" handle "]
 except:
-  pass")))))
+  pass"))))
+  (delete-numpy-pickle-arrays))
 
 (defun delete-numpy-pickle-arrays ()
   "Delete pickled arrays, to free space."
-  (iter (while (> *numpy-pickle-index* 0))
-        (for filename =
-             (concatenate 'string
-                          (config-var 'numpy-pickle-location)
-                          "." (write-to-string *numpy-pickle-index*)))
-        (uiop:delete-file-if-exists filename)
-        (decf *numpy-pickle-index*)))
+  (loop :while (> *numpy-pickle-index* 0)
+        :for filename := (concatenate 'string
+                                      (config-var 'numpy-pickle-location)
+                                      ".to." (write-to-string *numpy-pickle-index*))
+        :do (decf *numpy-pickle-index*)
+            (uiop:delete-file-if-exists filename)))
 
 (defun make-python-object-finalize (&key (type "") handle)
     "Make a PYTHON-OBJECT struct with a finalizer.

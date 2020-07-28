@@ -179,23 +179,35 @@ numeric_base_classes = (numbers.Number,)
 try:
     # Use NumPy for multi-dimensional arrays
     import numpy
-
-    def load_pickled_ndarray_and_delete(filename):
+    NUMPY_PICKLE_INDEX = 0 # optional increment in lispify_ndarray and reset to 0
+    def load_pickled_ndarray(filename):
         arr = numpy.load(filename, allow_pickle = True)
-        os.remove(filename)
         return arr
+
+    def delete_numpy_pickle_arrays():
+        global NUMPY_PICKLE_INDEX
+        while NUMPY_PICKLE_INDEX > 0:
+            NUMPY_PICKLE_INDEX -= 1
+            numpy_pickle_location = config["numpyPickleLocation"] \
+                                    + ".from." + str(NUMPY_PICKLE_INDEX)
+            if os.path.exists(numpy_pickle_location):
+                os.remove(numpy_pickle_location)
 
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
         array([[1, 2],     => '#2A((1 2) (3 4))'
-              [3, 4]])
+               [3, 4]])
         """
+        global NUMPY_PICKLE_INDEX
         if "numpyPickleLowerBound" in config and \
            "numpyPickleLocation" in config and \
            obj.size > config["numpyPickleLowerBound"]:
-            numpy_pickle_location = config["numpyPickleLocation"]
-            numpy.save(numpy_pickle_location, obj, allow_pickle = True)
+            numpy_pickle_location = config["numpyPickleLocation"] \
+                + ".from." + str(NUMPY_PICKLE_INDEX)
+            NUMPY_PICKLE_INDEX += 1
+            with open(numpy_pickle_location, "wb") as f:
+                numpy.save(f, obj, allow_pickle = True)
             return ('#.(numpy-file-format:load-array "'
                     + numpy_pickle_location + '")')
         if obj.ndim == 0:
@@ -363,6 +375,7 @@ def message_dispatch_loop():
         try:
             # Read command type
             cmd_type = sys.stdin.read(1)
+            delete_numpy_pickle_arrays()
             
             if cmd_type == "e":  # Evaluate an expression
                 result = eval(recv_string(), eval_globals, eval_locals)
@@ -470,8 +483,8 @@ eval_globals["_py4cl_load_config"] = load_config
 try:
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays
     eval_globals["_py4cl_numpy"] = numpy
-    eval_globals["_py4cl_load_pickled_ndarray_and_delete"] \
-      = load_pickled_ndarray_and_delete
+    eval_globals["_py4cl_load_pickled_ndarray"] \
+      = load_pickled_ndarray
 except:
     pass
 
