@@ -70,17 +70,20 @@ which is interpreted correctly by python (3.7.2)."
 ;; this is incremented by pythonize and reset to 0 at the beginning of
 ;; every pyeval*/pycall from delete-numpy-pickle-arrays in reader.lisp
 (defmethod pythonize ((obj array))
+
+  ;; Transfer large arrays via pickling
   (when (and (config-var 'numpy-pickle-lower-bound)
              (config-var 'numpy-pickle-location)
              (> (array-total-size obj)
                 (config-var 'numpy-pickle-lower-bound)))
     (let ((filename (concatenate 'string
-				 (config-var 'numpy-pickle-location)
-				 "." (write-to-string (incf *numpy-pickle-index*)))))
+                                 (config-var 'numpy-pickle-location)
+                                 ".to." (write-to-string *numpy-pickle-index*))))
+      (incf *numpy-pickle-index*)
       (numpy-file-format:store-array obj filename)
       (return-from pythonize
-	(concatenate 'string "_py4cl_load_pickled_ndarray_and_delete('"
-		     filename"')"))))
+        (concatenate 'string "_py4cl_load_pickled_ndarray('"
+                     filename"')"))))
   
   ;; Handle case of empty array
   (if (= (array-total-size obj) 0)

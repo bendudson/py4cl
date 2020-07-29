@@ -629,7 +629,7 @@ class testclass:
 (deftest transfer-multiple-arrays (pytests)
   (when (and (py4cl:config-var 'py4cl:numpy-pickle-location)
              (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
-    (let ((dimensions `((,(py4cl:config-var 'py4cl:numpy-pickle-lower-bound))
+    (let ((dimensions `((,(* 2 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound)))
                         (,(* 5 (py4cl:config-var 'py4cl:numpy-pickle-lower-bound))))))
       (assert-equalp dimensions
                      (mapcar #'array-dimensions 
