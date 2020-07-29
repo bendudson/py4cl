@@ -202,7 +202,7 @@ try:
         global NUMPY_PICKLE_INDEX
         if "numpyPickleLowerBound" in config and \
            "numpyPickleLocation" in config and \
-           obj.size > config["numpyPickleLowerBound"]:
+           obj.size >= config["numpyPickleLowerBound"]:
             numpy_pickle_location = config["numpyPickleLocation"] \
                 + ".from." + str(NUMPY_PICKLE_INDEX)
             NUMPY_PICKLE_INDEX += 1
