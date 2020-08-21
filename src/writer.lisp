@@ -118,14 +118,11 @@ evals a list with a single element as a tuple
     (write-char #\) stream)))
 
 (defmethod pythonize ((obj string))
-  (cond ((find #\newline obj)
-         (format nil "\"\"\"~A\"\"\""
-                 (let ((escaped-string (write-to-string (coerce obj
-                                                                '(vector character))
-                                                        :escape t :readably t)))
-                   (subseq escaped-string 1 (1- (length escaped-string))))))
-        (t (write-to-string (coerce obj '(vector character))
-                            :escape t :readably t))))
+  (format nil (if (find #\newline obj)
+                  "\"\"~A\"\""
+                  "~A")
+          (write-to-string (coerce obj '(vector character))
+                           :escape t :readably t)))
 
 (defmethod pythonize ((obj symbol))
   "Handle symbols. Need to handle NIL,
