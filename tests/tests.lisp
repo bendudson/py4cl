@@ -56,9 +56,14 @@
   (assert-equalp "say \"hello\" world"
       (py4cl:python-eval "'say \"hello\"' + ' world'")))
 
+(deftest eval-string-newline (pytests)
+  (let ((str "hello
+world"))
+    (assert-equalp str (py4cl:python-eval (py4cl::pythonize str)))))
+
 (deftest pythonize-format-string (tests)
   (assert-equalp "\"foo\""
-                 (py4cl::pythonize (format nil "foo"))))
+      (py4cl::pythonize (format nil "foo"))))
 
 (deftest eval-format-string (pytests)
   (assert-equalp "foo"
