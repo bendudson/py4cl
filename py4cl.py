@@ -5,6 +5,10 @@
 #
 # Should work with python 2.7 or python 3
 
+# Do NOT use a single-quote in this file. This file is read into the variable
+# *PYTHON-CODE*. That variable is then fed into a bash command, which makes
+# single-quotes dangerous. See PYTHON-START for this bash command details.
+
 from __future__ import print_function
 
 import sys
@@ -33,7 +37,7 @@ def load_config():
             global config
             config = json.load(conf)
             try:
-                eval_globals['_py4cl_config'] = config
+                eval_globals["_py4cl_config"] = config
             except:
                 pass
 load_config()
@@ -140,7 +144,7 @@ class UnknownLispObject (object):
         # Wait for the result
         return message_dispatch_loop()
         
-# These store the environment used when eval'ing strings from Lisp
+# These store the environment used when eval-ing strings from Lisp
 eval_globals = {}
 eval_locals = {}
 
@@ -165,10 +169,10 @@ lispifiers = {
     complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
     list       : lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify(elt) for elt in x) + ")",
-    # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
-    dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
-    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
-    type(u'unicode') : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",  # Unicode in python 2
+    # Note: With dict -> hash table, use :test equal so that string keys work as expected
+    dict       : lambda x: "#.(let ((table (make-hash-table :test (quote cl:equal)))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
+    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace("\"", "\\\"")  + "\"",
+    type(u"unicode") : lambda x: "\"" + x.replace("\\", "\\\\").replace("\"", "\\\"")  + "\"",  # Unicode in python 2
     Symbol     : str,
     UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
@@ -196,7 +200,7 @@ try:
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
-        array([[1, 2],     => '#2A((1 2) (3 4))'
+        array([[1, 2],     => #2A((1 2) (3 4))
                [3, 4]])
         """
         global NUMPY_PICKLE_INDEX
@@ -208,8 +212,8 @@ try:
             NUMPY_PICKLE_INDEX += 1
             with open(numpy_pickle_location, "wb") as f:
                 numpy.save(f, obj, allow_pickle = True)
-            return ('#.(numpy-file-format:load-array "'
-                    + numpy_pickle_location + '")')
+            return ("#.(numpy-file-format:load-array \""
+                    + numpy_pickle_location + "\")")
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -240,7 +244,7 @@ def lispify_handle(obj):
 
 def lispify(obj):
     """
-    Turn a python object into a string which can be parsed by Lisp's reader.
+    Turn a python object into a string which can be parsed by Lisp reader.
     
     If return_values is false then always creates a handle
     """
@@ -291,7 +295,7 @@ def send_value(value):
         value_str = lispify(value)
     except Exception as e:
         # At this point the message type has been sent,
-        # so we can't change to throw an exception/signal condition
+        # so we cannot change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
     print(len(value_str))
     write_stream.write(value_str)
@@ -458,7 +462,7 @@ def message_dispatch_loop():
                 return_value(None)
                 
             else:
-                return_error("Unknown message type '{0}'".format(cmd_type))
+                return_error("Unknown message type \"{0}\"".format(cmd_type))
 
         except KeyboardInterrupt as e:
             return_value(None)
@@ -466,7 +470,7 @@ def message_dispatch_loop():
             return_error(e)
 
 
-# Store for python objects which can't be translated to Lisp objects
+# Store for python objects which cannot be translated to Lisp objects
 python_objects = {}
 python_handle = itertools.count(0) # Running counter
 
@@ -476,7 +480,7 @@ eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
 eval_globals["_py4cl_generator"] = generator
-# These store the environment used when eval'ing strings from Lisp
+# These store the environment used when eval-ing strings from Lisp
 # - particularly for numpy pickling
 eval_globals["_py4cl_config"] = config
 eval_globals["_py4cl_load_config"] = load_config
