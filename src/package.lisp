@@ -27,7 +27,8 @@
    #:import-module
    #:export-function)
   (:export ; lisp-classes
-   #:python-getattr)
+   #:python-getattr
+   #:python-setattr)
   (:export ; config 
    #:*config*
    #:initialize
