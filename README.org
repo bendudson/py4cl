@@ -232,6 +232,20 @@ specifying the method, followed by any arguments:
 #+RESULTS:
 : 3
 
+** Getting python attributes: =python-getattr=
+
+The attributes of a python object can be accessed using the generic
+functon =python-getattr=, with the python object as first argument and
+a string as the name of the attribute:
+#+BEGIN_SRC lisp
+(py4cl:python-getattr '(1 2 3) "__doc__")
+#+END_SRC
+
+
+Note: Methods for this function can also be defined for lisp classes,
+enabling python code to access attributes of lisp objects. See below
+for details.
+
 ** Chaining python methods: =chain=
 
 In python it is quite common to apply a chain of method calls, data
