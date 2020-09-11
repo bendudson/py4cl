@@ -43,7 +43,40 @@ module to be imported into the python session.
        ,(or docstring "Python function")
        (apply #'python-call ,fun-name args))))
 
-(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil))
+(defvar *is-submodule* nil
+  "Used for coordinating import statements from defpymodule while calling recursively")
+
+;;; packages in python are collection of modules; module is a single python file
+;;; In fact, all packages are modules; but all modules are not packages.
+(defun import-submodules (pymodule-name lisp-package)
+  (let ((submodules
+          (python-eval "tuple((modname, ispkg) for importer, modname, ispkg in "
+                       "pkgutil.iter_modules("
+                       pymodule-name
+                       ".__path__))")))
+    (loop :for (submodule has-submodules) :in submodules
+          :for submodule-fullname := (concatenate 'string
+                                                  pymodule-name "." submodule)
+          :if (and (char/= #\_ (aref submodule 0)) ; avoid private modules / packages
+                   ;; pkgutil is of type module
+                   ;; import matplotlib does not import matplotlib.pyplot
+                   ;; https://stackoverflow.com/questions/14812342/matplotlib-has-no-attribute-pyplot
+                   ;; We maintain these semantics.
+                   ;; The below form errors in the case of submodules and
+                   ;; therefore returns NIL.
+                   (ignore-errors (python-eval "type(" submodule-fullname
+                                               ") == type(pkgutil)")))
+            :collect (let ((*is-submodule* t))
+                       (macroexpand-1
+                        `(import-module ,submodule-fullname
+                                        :import-submodules ,has-submodules
+                                        :as ,(concatenate 'string
+                                                          pymodule-name "."
+                                                          submodule)))))))
+
+
+(defmacro import-module (module-name &key (as module-name as-supplied-p) (reload nil)
+                                       import-submodules)
   "Import a python module as a Lisp package. The module name should be
 a string.
 
@@ -76,14 +109,16 @@ RELOAD specifies that the package should be deleted and reloaded.
   (python-start-if-not-alive)
 
   ;; Import the required module in python
-  (if as-supplied-p
-      (python-exec (concatenate 'string
-                                "import " module-name " as " as))
-      (python-exec (concatenate 'string
-                                "import " module-name)))
+  (unless *is-submodule*
+    (if as-supplied-p
+        (python-exec (concatenate 'string
+                                  "import " module-name " as " as))
+        (python-exec (concatenate 'string
+                                  "import " module-name))))
 
   ;; Also need to import the "inspect" module
   (python-exec "import inspect")
+  (python-exec "import pkgutil")
 
   ;; fn-names  All callables whose names don't start with "_"
   (let* ((fn-names (python-eval (concatenate 'string
@@ -94,24 +129,28 @@ RELOAD specifies that the package should be deleted and reloaded.
          ;; so that the result reflects changes to the readtable
          ;; Setting *package* causes symbols to be interned by READ-FROM-STRING in this package
          ;; Note that the package doesn't use CL to avoid shadowing
-         (*package* (make-package (string (read-from-string as))
+         (package-name (string (read-from-string as)))
+         (*package* (make-package package-name
                                   :use '()))
          (fun-symbols (map 'list
                            (lambda (fun-name)
                              (read-from-string fun-name))
                            fn-names)))
-    (import '(cl:nil)) ; So that missing docstring is handled
+    (import '(cl:nil))          ; So that missing docstring is handled
     `(progn
        ,(macroexpand `(defpackage ,(package-name *package*)
                         (:use)
                         (:export ,@fun-symbols)))
+       ,@(if import-submodules
+             (import-submodules as
+                                package-name))
        ,@(loop for name across fn-names
-            for fn-symbol = (read-from-string name)
-            for fullname = (concatenate 'string as "." name) ; Include module prefix
-            append `((import-function ,fullname :as ,fn-symbol
-                                      :docstring ,(python-eval (concatenate 'string
-                                                                            as "." name ".__doc__")))
-                     (export ',fn-symbol ,*package*)))
+               for fn-symbol = (read-from-string name)
+               for fullname = (concatenate 'string as "." name) ; Include module prefix
+               append `((import-function ,fullname :as ,fn-symbol
+                                                   :docstring ,(python-eval (concatenate 'string
+                                                                                         as "." name ".__doc__")))
+                        (export ',fn-symbol ,*package*)))
        t)))
 
 (defun export-function (function python-name)

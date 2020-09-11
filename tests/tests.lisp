@@ -1,4 +1,7 @@
 (py4cl:import-module "math" :reload t)
+(py4cl:import-module "numpy" :reload t :as "NP")
+(py4cl:import-module "numpy.random" :import-submodules t :reload t)
+
 (defpackage #:py4cl/tests
   (:use #:cl #:clunit)
   (:export #:run))
@@ -738,3 +741,26 @@ class Foo():
   (assert-equality #'= #C(0.5 1.0)
     (py4cl:python-eval #C(1 2) "*" 1/2)))
     
+
+;; ==================== SUBMODULE-IMPORT (py4cl2-backport) =========================
+
+(deftest numpy-import-as-np (pytests)
+  ;; also check whether "all" options as expected
+  (py4cl:import-module "numpy" :as "NP" :reload t)
+  ;; np. formats are accessible
+  (assert-true (py4cl:python-eval 'np.float32))
+  ;; The below test should pass on py4cl2 but fail on py4cl, due to the presence
+  ;; of "import statements" in the former
+  ;; (py4cl:python-stop)
+  ;;;; package is imported as np even after stopping
+  ;; (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6)))
+  )
+
+(deftest numpy-random-import (pytests)  
+  (py4cl:import-module "numpy.random" :reload t :import-submodules t)
+  ;; The following tests two bugfixes
+  ;; 1. defpysubmodules was previously importing only packages.
+  ;; 2. package-import-string was not good for submodules like matplotlib.pyplot
+  ;; Note also that some symbols are present in pip numpy not in travis apt numpy.
+  ;; py4cl/tests should not even compile in the case of these bugs.
+  (assert-true (numpy.random.mtrand:rand 2)))
