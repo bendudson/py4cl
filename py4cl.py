@@ -106,6 +106,9 @@ class UnknownLispObject (object):
     """
     Represents an object in Lisp, which could not be converted to Python
     """
+
+    __during_init = True # Don't send changes during __init__
+    
     def __init__(self, lisptype, handle):
         """
         lisptype  A string describing the type. Mainly for debugging
@@ -113,6 +116,7 @@ class UnknownLispObject (object):
         """
         self.lisptype = lisptype
         self.handle = handle
+        self.__during_init = False  # Further changes are sent to Lisp
 
     def __del__(self):
         """
@@ -132,12 +136,24 @@ class UnknownLispObject (object):
         # Check if there is a slot with this name
         try:
             sys.stdout = write_stream
-            write_stream.write("s") # Slot access
+            write_stream.write("s") # Slot read
             send_value((self.handle, attr))
         finally:
             sys.stdout = redirect_stream
 
         # Wait for the result
+        return message_dispatch_loop()
+    
+    def __setattr__(self, attr, value):
+        if self.__during_init:
+            return object.__setattr__(self, attr, value)
+        try:
+            sys.stdout = write_stream
+            write_stream.write("S") # Slot write
+            send_value((self.handle, attr, value))
+        finally:
+            sys.stdout = redirect_stream
+        # Wait until finished, to syncronise
         return message_dispatch_loop()
         
 # These store the environment used when eval'ing strings from Lisp

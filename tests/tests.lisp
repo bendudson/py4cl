@@ -612,6 +612,30 @@ class testclass:
     (assert-equalp 3
         (py4cl:chain object other))))
 
+;; Define a method to handle slot writing from python
+(defmethod py4cl:python-setattr ((object test-class) slot-name set-to-value)
+  (cond
+    ((string= slot-name "value")
+     (setf (slot-value object 'value) set-to-value))
+    ((string= slot-name "thing")
+     (setf (slot-value object 'thing) set-to-value))
+    (t (call-next-method))))
+
+(deftest lisp-class-set-slots (pytests)
+  (let ((object (make-instance 'test-class :thing 23 :value 42)))
+    
+    ;; Set value
+    (py4cl:python-exec object ".thing = 3")
+
+    (assert-equalp 3 (slot-value object 'thing))
+    (assert-equalp 3 (py4cl:python-eval object ".thing"))
+
+    ;; Set again
+    (setf (py4cl:chain object thing) 72)
+    
+    (assert-equalp 72 (slot-value object 'thing))
+    (assert-equalp 72 (py4cl:chain object thing))))
+
 (deftest callback-in-remote-objects (pytests)
   ;; Callbacks send values to lisp in remote-objects environments
   (assert-equalp 6
