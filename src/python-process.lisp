@@ -14,6 +14,15 @@ e.g. \"python\" or \"python3\"")
 is used to prevent garbage collection from deleting objects in the wrong
 python session")
 
+(defparameter *python-code*
+  (let ((python-code (alexandria:read-file-into-string
+                      (namestring (merge-pathnames #p"py4cl.py"
+                                                   py4cl/config:*base-directory*)))))
+    (when (find #\' python-code)
+      (cerror "Yes"
+              "There is a #\' in the code. Are you sure you want to proceed?"))
+    python-code))
+
 (defun python-start (&optional (command *python-command*))
   "Start a new python subprocess
 This sets the global variable *python* to the process handle,
@@ -24,13 +33,18 @@ By default this is is set to *PYTHON-COMMAND*
   (setf *python*
         (uiop:launch-program
          (concatenate 'string
-                      "exec "
-                      command  ; Run python executable
-                      " "
-                      ;; Path *base-pathname* is defined in py4cl.asd
-                      ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream))
+                      "bash -c '"
+                      command        ; Run python executable
+                      " -u "
+                      " <(cat <<\"EOF\""
+                      (string #\newline)
+                      *python-code*
+                      (string #\newline)
+                      "EOF"
+                      (string #\newline)
+                      ")'")
+                :input :stream
+                :output :stream))
   (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process *python*))
