@@ -74,8 +74,9 @@ which is interpreted correctly by python (3.7.2)."
   ;; Transfer large arrays via pickling
   (when (and (config-var 'numpy-pickle-lower-bound)
              (config-var 'numpy-pickle-location)
-             (>= (array-total-size obj)
-                 (config-var 'numpy-pickle-lower-bound)))
+             (> (array-total-size obj)
+                (config-var 'numpy-pickle-lower-bound))
+                (py4cl:python-eval "_py4cl_numpy_is_loaded"))
     (let ((filename (concatenate 'string
                                  (config-var 'numpy-pickle-location)
                                  ".to." (write-to-string *numpy-pickle-index*))))

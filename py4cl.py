@@ -176,9 +176,11 @@ lispifiers = {
 # This is used to test if a value is a numeric type
 numeric_base_classes = (numbers.Number,)
 
+eval_globals["_py4cl_numpy_is_loaded"] = False
 try:
     # Use NumPy for multi-dimensional arrays
     import numpy
+    eval_globals["_py4cl_numpy_is_loaded"] = True
     NUMPY_PICKLE_INDEX = 0 # optional increment in lispify_ndarray and reset to 0
     def load_pickled_ndarray(filename):
         arr = numpy.load(filename, allow_pickle = True)
@@ -375,7 +377,7 @@ def message_dispatch_loop():
         try:
             # Read command type
             cmd_type = sys.stdin.read(1)
-            delete_numpy_pickle_arrays()
+            if eval_globals["_py4cl_numpy_is_loaded"]: delete_numpy_pickle_arrays()
             
             if cmd_type == "e":  # Evaluate an expression
                 result = eval(recv_string(), eval_globals, eval_locals)
