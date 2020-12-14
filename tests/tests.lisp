@@ -738,3 +738,21 @@ class Foo():
   (assert-equality #'= #C(0.5 1.0)
     (py4cl:python-eval #C(1 2) "*" 1/2)))
     
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Scope in python exec
+
+(deftest python-exec-scope (pytests)
+  ;; Local functions are retained in scope
+  ;; This changed in python 3.x see e.g. https://stackoverflow.com/a/24734880
+  (assert-equalp "10
+"
+      (with-output-to-string (*standard-output*)
+        (py4cl:python-exec "
+def foo():
+  return 5
+
+def bar():
+  return foo() + foo()
+
+print(bar())"))))

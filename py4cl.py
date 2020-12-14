@@ -1,5 +1,5 @@
 # Python interface for py4cl
-# 
+#
 # This code handles messages from lisp, marshals and unmarshals data,
 # and defines classes which forward all interactions to lisp.
 #
@@ -17,6 +17,8 @@ try:
     from io import StringIO # Python 3
 except:
     from io import BytesIO as StringIO
+
+is_py2 = sys.version_info[0] < 3
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
@@ -40,7 +42,7 @@ load_config()
 
 class Symbol(object):
     """
-    A wrapper around a string, representing a Lisp symbol. 
+    A wrapper around a string, representing a Lisp symbol.
     """
     def __init__(self, name):
         self._name = name
@@ -51,8 +53,8 @@ class Symbol(object):
 
 class LispCallbackObject (object):
     """
-    Represents a lisp function which can be called. 
-    
+    Represents a lisp function which can be called.
+
     An object is used rather than a lambda, so that the lifetime
     can be monitoried, and the function removed from a hash map
     """
@@ -76,11 +78,11 @@ class LispCallbackObject (object):
     def __call__(self, *args, **kwargs):
         """
         Call back to Lisp
-        
+
         args   Arguments to be passed to the function
         """
         global return_values
-        
+
         # Convert kwargs into a sequence of ":keyword value" pairs
         # appended to the positional arguments
         allargs = args
@@ -101,14 +103,14 @@ class LispCallbackObject (object):
         # Note that the lisp function may call python before returning
         return message_dispatch_loop()
 
-    
+
 class UnknownLispObject (object):
     """
     Represents an object in Lisp, which could not be converted to Python
     """
 
     __during_init = True # Don't send changes during __init__
-    
+
     def __init__(self, lisptype, handle):
         """
         lisptype  A string describing the type. Mainly for debugging
@@ -143,7 +145,7 @@ class UnknownLispObject (object):
 
         # Wait for the result
         return message_dispatch_loop()
-    
+
     def __setattr__(self, attr, value):
         if self.__during_init:
             return object.__setattr__(self, attr, value)
@@ -155,7 +157,7 @@ class UnknownLispObject (object):
             sys.stdout = redirect_stream
         # Wait until finished, to syncronise
         return message_dispatch_loop()
-        
+
 # These store the environment used when eval'ing strings from Lisp
 eval_globals = {}
 eval_locals = {}
@@ -164,7 +166,7 @@ eval_locals = {}
 
 return_values = 0 # Try to return values to lisp. If > 0, always return a handle
                   # A counter is used, rather than Boolean, to allow nested environments.
-    
+
 ##################################################################
 # This code adapted from cl4py
 #
@@ -229,11 +231,11 @@ try:
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
-        
+
         def nested(obj):
             """Turns an array into nested ((1 2) (3 4))"""
-            if obj.ndim == 1: 
-                return "("+" ".join([lispify(i) for i in obj])+")" 
+            if obj.ndim == 1:
+                return "("+" ".join([lispify(i) for i in obj])+")"
             return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
 
         return "#{:d}A".format(obj.ndim) + nested(obj)
@@ -257,7 +259,7 @@ def lispify_handle(obj):
 def lispify(obj):
     """
     Turn a python object into a string which can be parsed by Lisp's reader.
-    
+
     If return_values is false then always creates a handle
     """
     if return_values > 0:
@@ -270,7 +272,7 @@ def lispify(obj):
         # as well as built-in numeric types
         if isinstance(obj, numeric_base_classes):
             return str(obj)
-        
+
         # Another unknown type. Return a handle to a python object
         return lispify_handle(obj)
 
@@ -297,7 +299,9 @@ def recv_value():
     Get a value from the input stream
     Return could be any type
     """
-    return eval(recv_string(), eval_globals, eval_locals)
+    if is_py2:
+        return eval(recv_string(), eval_globals, eval_locals)
+    return eval(recv_string(), eval_globals)
 
 def send_value(value):
     """
@@ -319,7 +323,7 @@ def return_stdout():
     """
     global redirect_stream
     global return_values
-    
+
     contents = redirect_stream.getvalue()
     if not contents:
         return  # Nothing to send
@@ -335,7 +339,7 @@ def return_stdout():
     finally:
         return_values = old_return_values
         sys.stdout = redirect_stream
-    
+
 def return_error(err):
     """
     Send an error message
@@ -343,7 +347,7 @@ def return_error(err):
     global return_values
 
     return_stdout() # Send stdout if any
-    
+
     old_return_values = return_values # Save to restore after
     try:
         return_values = 0 # Need to return the error, not a handle
@@ -362,7 +366,7 @@ def return_value(value):
         return return_error(value)
 
     return_stdout() # Send stdout if any
-    
+
     # Mark response as a returned value
     try:
         sys.stdout = write_stream
@@ -370,7 +374,26 @@ def return_value(value):
         send_value(value)
     finally:
         sys.stdout = redirect_stream
-        
+
+
+def py_eval(command, eval_globals, eval_locals):
+    """
+    Perform eval, but do not pass locals if we are in python 3.
+    """
+    if is_py2: # Python 3
+        return eval(command, eval_globals, eval_locals)
+    # Python 3
+    return eval(command, eval_globals)
+
+def py_exec(command, exec_globals, exec_locals):
+    """
+    Perform exec, but do not pass locals if we are in python 3.
+    """
+    if is_py2: # Python 3
+        return exec(command, exec_globals, exec_locals)
+    # Python 3
+    return exec(command, exec_globals)
+
 def message_dispatch_loop():
     """
     Wait for a message, dispatch on the type of message.
@@ -383,20 +406,23 @@ def message_dispatch_loop():
     f  Function call
     a  Asynchronous function call
     R  Retrieve value from asynchronous call
-    s  Set variable(s) 
+    s  Set variable(s)
     """
     global return_values  # Controls whether values or handles are returned
-    
+
     while True:
         try:
             # Read command type
             cmd_type = sys.stdin.read(1)
-            delete_numpy_pickle_arrays()
-            
+            try:
+                delete_numpy_pickle_arrays()
+            except:
+                pass
+
             if cmd_type == "e":  # Evaluate an expression
-                result = eval(recv_string(), eval_globals, eval_locals)
+                result = py_eval(recv_string(), eval_globals, eval_locals)
                 return_value(result)
-            
+
             elif cmd_type == "f" or cmd_type == "a": # Function call
                 # Get a tuple (function, allargs)
                 fn_name, allargs = recv_value()
@@ -412,12 +438,12 @@ def message_dispatch_loop():
                             kwargs[ str(arg)[1:] ] = next(it)
                             continue
                         args.append(arg)
-                
+
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
                 if callable(fn_name):
                     function = fn_name # Already callable
                 else:
-                    function = eval(fn_name, eval_globals, eval_locals)
+                    function = py_eval(fn_name, eval_globals, eval_locals)
                 if cmd_type == "f":
                     # Run function then return value
                     return_value( function(*args, **kwargs) )
@@ -427,7 +453,7 @@ def message_dispatch_loop():
                     # Get a handle, and send back to caller.
                     # The handle can be used to fetch
                     # the result using an "R" message.
-                    
+
                     handle = next(async_handle)
                     return_value(handle)
 
@@ -438,41 +464,45 @@ def message_dispatch_loop():
                         # Catching error here so it can
                         # be stored as the return value
                         async_results[handle] = e
-    
+
             elif cmd_type == "O":  # Return only handles
                 return_values += 1
 
             elif cmd_type == "o":  # Return values when possible (default)
                 return_values -= 1
-                
+
             elif cmd_type == "q": # Quit
                 sys.exit(0)
-                
+
             elif cmd_type == "R":
                 # Request value using handle
                 handle = recv_value()
                 return_value( async_results.pop(handle) )
-                
+
             elif cmd_type == "r": # Return value from Lisp function
                 return recv_value()
-            
+
             elif cmd_type == "s":
                 # Set variables. Should have the form
                 # ( ("var1" value1) ("var2" value2) ...)
                 setlist = recv_value()
-                for name, value in setlist:
-                    eval_locals[name] = value
+                if is_py2:
+                    for name, value in setlist:
+                        eval_locals[name] = value
+                else:
+                    for name, value in setlist:
+                        eval_globals[name] = value
                 # Need to send something back to acknowlege
                 return_value(True)
 
             elif cmd_type == "v":
                 # Version info
                 return_value(tuple(sys.version_info))
-                
+
             elif cmd_type == "x": # Execute a statement
-                exec(recv_string(), eval_globals, eval_locals)
+                py_exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
-                
+
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
 
@@ -510,7 +540,7 @@ except:
 try:
     import fractions
     eval_globals["_py4cl_fraction"] = fractions.Fraction
-    
+
     # Turn a Fraction into a Lisp RATIO
     lispifiers[fractions.Fraction] = str
 except:
