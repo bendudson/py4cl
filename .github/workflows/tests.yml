@@ -18,8 +18,7 @@ jobs:
         config:
           - name: "SBCL"
             install_packages: sbcl    # Ubuntu packages
-            cl: sbcl    # Common Lisp executable
-
+            cl: sbcl --noinform --quit
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Job information
@@ -29,21 +28,21 @@ jobs:
       - name: Install Common Lisp
         run: sudo apt update &&
              sudo apt install -y ${{ matrix.config.install_packages }} &&
-             ${{ matrix.config.cl }} -e '(format t "~%~a ~a up and running! (ASDF ~a)~%~%"
+             ${{ matrix.config.cl }} --eval '(format t "~%~a ~a up and running! (ASDF ~a)~%~%"
                       (lisp-implementation-type)
                       (lisp-implementation-version)
                       (asdf:asdf-version))'
 
       - name: Install Quicklisp
         run: curl --no-progress-bar --retry 10  -o quicklisp.lisp -L http://beta.quicklisp.org/quicklisp.lisp &&
-             ${{ matrix.config.cl }} -f quicklisp.lisp -e '(quicklisp-quickstart:install)'
+             ${{ matrix.config.cl }} --load quicklisp.lisp --eval '(quicklisp-quickstart:install)'
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
       # Runs the tests
       - name: Load system and run tests
-        run: ${{ matrix.config.cl }} -e "
+        run: ${{ matrix.config.cl }} --eval "
              (let ((quicklisp-init (merge-pathnames \"quicklisp/setup.lisp\"
                                                     (user-homedir-pathname))))
                (when (probe-file quicklisp-init)
