@@ -17,49 +17,37 @@ jobs:
       matrix:
         config:
           - name: "SBCL"
-            install_packages: sbcl    # Ubuntu packages
-            cl: sbcl --noinform --quit
-    # Steps represent a sequence of tasks that will be executed as part of the job
+            lisp: sbcl-bin
+
     steps:
       - name: Job information
         run: |
           echo Build: ${{ matrix.config.name }}
 
-      - name: Install Common Lisp
-        run: sudo apt update &&
-             sudo apt install -y ${{ matrix.config.install_packages }} &&
-             ${{ matrix.config.cl }} --eval '(format t "~%~a ~a up and running! (ASDF ~a)~%~%"
-                      (lisp-implementation-type)
-                      (lisp-implementation-version)
-                      (asdf:asdf-version))'
-
-      - name: Install Quicklisp
-        run: curl --no-progress-bar --retry 10  -o quicklisp.lisp -L http://beta.quicklisp.org/quicklisp.lisp &&
-             ${{ matrix.config.cl }} --load quicklisp.lisp --eval '(quicklisp-quickstart:install)'
+      - name: Install Roswell
+        env:
+          LISP: ${{ matrix.lisp }}
+        run: |
+          curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
       # Runs the tests
       - name: Load system and run tests
-        run: ${{ matrix.config.cl }} --eval "
-             (let ((quicklisp-init (merge-pathnames \"quicklisp/setup.lisp\"
-                                                    (user-homedir-pathname))))
-               (when (probe-file quicklisp-init)
-                 (load quicklisp-init)))
-             (pushnew (truename \".\")
-                      ql:*local-project-directories* )
-             (ql:register-local-projects)
-             (ql:quickload :pytest)
-             (ql:quickload :py4cl/tests)
-             (if (or
-                   (let ((report (py4cl/tests:run)))
-                     (when (or (plusp (slot-value report 'clunit::failed))
-                               (plusp (slot-value report 'clunit::errors)))
-                       (princ report)))
-                   (let ((py4cl:*python-command* \"python3\"))
+        run: |
+          ros  -e "(setf ql:*local-project-directories* '(#p\".\"))
+                   (ql:register-local-projects)
+                   (ql:quickload :py4cl)
+                   (ql:quickload :py4cl/tests)
+                   (if (or
                      (let ((report (py4cl/tests:run)))
                        (when (or (plusp (slot-value report 'clunit::failed))
                                  (plusp (slot-value report 'clunit::errors)))
-                         (princ report)))))
-                 (uiop:quit 1))"
+                         (princ report)))
+                     (let ((py4cl:*python-command* \"python3\"))
+                       (let ((report (py4cl/tests:run)))
+                         (when (or (plusp (slot-value report 'clunit::failed))
+                                   (plusp (slot-value report 'clunit::errors)))
+                           (princ report)))))
+                   (uiop:quit 1))"
