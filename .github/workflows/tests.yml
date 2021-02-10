@@ -30,13 +30,13 @@ jobs:
                  curl
                  automake
                  libcurl4
-                 libcurl4-openssl-dev
 
       - name: Install Roswell
         env:
           LISP: ${{ matrix.lisp }}
         run: |
-          curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
+          curl -L https://github.com/roswell/roswell/releases/download/v19.08.10.101/roswell_19.08.10.101-1_amd64.deb --output roswell.deb
+          sudo dpkg -i roswell.deb
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
