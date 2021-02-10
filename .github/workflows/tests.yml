@@ -25,11 +25,10 @@ jobs:
           echo Build: ${{ matrix.config.name }}
 
       - name: Install dependencies
-        run: |
-          sudo apt update &&
-          sudo apt install -y
-              libcurl3
-              curl
+        run: sudo apt update &&
+             sudo apt install -y
+                 libcurl3
+                 curl
 
       - name: Install Roswell
         env:
