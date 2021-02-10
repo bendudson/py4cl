@@ -1,4 +1,4 @@
-[[https://travis-ci.org/bendudson/py4cl][https://travis-ci.org/bendudson/py4cl.svg?branch=master]]
+[[Build status][https://github.com/bendudson/py4cl/workflows/Tests/badge.svg]]
 
 * Introduction
 
@@ -33,7 +33,7 @@ then load into Lisp with
 
 ** Tests
 
-Tests use [[https://github.com/tgutu/clunit][clunit]], and run on [[https://travis-ci.org/][Travis]] using [[https://github.com/luismbo/cl-travis][cl-travis]]. Most development
+Tests use [[https://github.com/tgutu/clunit][clunit]], and run on Github actions. Most development
 is done under Arch linux with SBCL and Python3. To run the tests
 yourself:
 #+BEGIN_SRC lisp
