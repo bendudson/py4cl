@@ -172,21 +172,10 @@ The lisp function is stored in the same object store as other objects."
                ")"))
 
 (defun encode-lisp-string (string)
+  "Encode lisp string if necessary in some platform"
   #-lispworks string
   #+lispworks
   (translate-string-via-fli string :utf-8 :latin-1))
-
-(defun decode-external-string (string)
-  #-lispworks string
-  #+lispworks
-  (translate-string-via-fli string :latin-1 :utf-8))
-
-#+lispworks
-(defun translate-string-via-fli (string from to)
-  (fli:with-foreign-string (ptr elements bytes :external-format from)
-                           string
-    (declare (ignore elements bytes))
-    (fli:convert-from-foreign-string ptr :external-format to)))
 
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
