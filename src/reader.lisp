@@ -58,6 +58,20 @@ Uses trivial-garbage (public domain)
            ;; in parallel with the main thread, which may be executing other commands.
            (free-python-object python-id handle))))))
 
+(defun decode-external-string (string)
+  "Decode lisp string if necessary in some platform"
+  #-lispworks string
+  #+lispworks
+  (translate-string-via-fli string :latin-1 :utf-8))
+
+#+lispworks
+(defun translate-string-via-fli (string from to)
+  "The way to translate string in LispWorks."
+  (fli:with-foreign-string (ptr elements bytes :external-format from)
+                           string
+    (declare (ignore elements bytes))
+    (fli:convert-from-foreign-string ptr :external-format to)))
+
 (defun stream-read-string (stream)
   "Reads a string from a stream
 Expects a line containing the number of chars following
@@ -65,9 +79,24 @@ e.g. '5~%hello'
 Returns the string or nil on error
 "
   (let ((nchars (parse-integer (read-line stream))))
+    #+lispworks
+    (decode-external-string
+     (with-output-to-string (str)
+       (loop for i from 1 to nchars
+             for char1 = (read-char stream)
+             for code1 = (char-code char1)
+             do (write-char char1 str)
+                (loop repeat (cond ((< code1 #x80) 0)   ; assumes utf-8
+                                   ((< code1 #xe0) 1)
+                                   ((< code1 #xf0) 2)
+                                   ((< code1 #xf8) 3)
+                                   (t 4))
+                      do (write-char (read-char stream) str)))))
+    #-lispworks
     (with-output-to-string (str)
       (loop for i from 1 to nchars do
-           (write-char (read-char stream) str)))))
+           (write-char (read-char stream) str)))
+    ))
 
 (defun stream-read-value (stream)
   "Get a value from a stream

@@ -171,12 +171,29 @@ The lisp function is stored in the same object store as other objects."
                (pythonize (denominator obj))
                ")"))
 
+(defun encode-lisp-string (string)
+  #-lispworks string
+  #+lispworks
+  (translate-string-via-fli string :utf-8 :latin-1))
+
+(defun decode-external-string (string)
+  #-lispworks string
+  #+lispworks
+  (translate-string-via-fli string :latin-1 :utf-8))
+
+#+lispworks
+(defun translate-string-via-fli (string from to)
+  (fli:with-foreign-string (ptr elements bytes :external-format from)
+                           string
+    (declare (ignore elements bytes))
+    (fli:convert-from-foreign-string ptr :external-format to)))
+
 (defun stream-write-string (str stream)
   "Write a string to a stream, putting the length first"
   ;; Convert the value to a string
   (princ (length str) stream)  ; Header, so length of string is known to reader
   (terpri stream)
-  (write-string str stream))
+  (write-string (encode-lisp-string str) stream))
     
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
