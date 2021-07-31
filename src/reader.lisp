@@ -95,8 +95,7 @@ Returns the string or nil on error
     #-lispworks
     (with-output-to-string (str)
       (loop for i from 1 to nchars do
-           (write-char (read-char stream) str)))
-    ))
+           (write-char (read-char stream) str)))))
 
 (defun stream-read-value (stream)
   "Get a value from a stream
