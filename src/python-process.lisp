@@ -22,15 +22,16 @@ COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
   (setf *python*
-        (uiop:launch-program
-         (concatenate 'string
-                      "exec "
-                      command  ; Run python executable
-                      " "
-                      ;; Path *base-pathname* is defined in py4cl.asd
-                      ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream))
+        (apply #'uiop:launch-program
+               (concatenate 'string
+                            "exec "
+                            command  ; Run python executable
+                            " "
+                            ;; Path *base-pathname* is defined in py4cl.asd
+                            ;; Calculate full path to python script
+                            (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
+               :input :stream :output :stream
+               #+ccl '(:sharing :lock) #-ccl nil))
   (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process *python*))
