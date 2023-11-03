@@ -1,0 +1,61 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Tests
+
+# Controls when the action will run. 
+on: [push, pull_request]
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  tests:
+    name: ${{ matrix.config.name }}
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: "SBCL"
+            lisp: sbcl-bin
+
+    steps:
+      - name: Job information
+        run: |
+          echo Build: ${{ matrix.config.name }}
+
+      - name: Install dependencies
+        run: sudo apt update &&
+             sudo apt install -y
+                 curl
+                 automake
+                 libcurl4
+
+      - name: Install Roswell
+        env:
+          LISP: ${{ matrix.lisp }}
+        run: |
+          curl -L https://github.com/roswell/roswell/releases/download/v19.08.10.101/roswell_19.08.10.101-1_amd64.deb --output roswell.deb
+          sudo dpkg -i roswell.deb
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      # Runs the tests
+      - name: Load system and run tests
+        run: |
+          ros  -e "(setf ql:*local-project-directories* '(#p\".\"))
+                   (ql:register-local-projects)
+                   (ql:quickload :py4cl)
+                   (ql:quickload :py4cl/tests)
+                   (if (or
+                     (let ((report (py4cl/tests:run)))
+                       (when (or (plusp (slot-value report 'clunit::failed))
+                                 (plusp (slot-value report 'clunit::errors)))
+                         (princ report)))
+                     (let ((py4cl:*python-command* \"python3\"))
+                       (let ((report (py4cl/tests:run)))
+                         (when (or (plusp (slot-value report 'clunit::failed))
+                                   (plusp (slot-value report 'clunit::errors)))
+                           (princ report)))))
+                   (uiop:quit 1))"
